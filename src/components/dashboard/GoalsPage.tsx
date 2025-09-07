@@ -28,9 +28,9 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
       id: '1',
       title: 'Retirement by 65',
       description: 'Primary retirement goal',
-      targetAmount: user.goal,
+      targetAmount: user.Projected_Pension_Amount || 0,
       targetDate: '2031-12-31',
-      currentAmount: user.currentSavings,
+      currentAmount: user.Current_Savings || 0,
       priority: 'High',
       type: 'Long-term'
     },
@@ -382,12 +382,12 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
               </div>
               <div className="flex justify-between">
                 <span>Remaining for retirement:</span>
-                <span className="font-semibold">{formatCurrency(user.goal - goals.reduce((sum, goal) => sum + goal.targetAmount, 0))}</span>
+                <span className="font-semibold">{formatCurrency(user.Projected_Pension_Amount - goals.reduce((sum, goal) => sum + goal.targetAmount, 0))}</span>
               </div>
               <div className="flex justify-between">
                 <span>Retirement goal progress:</span>
                 <span className="font-semibold text-primary">
-                  {Math.round((user.currentSavings / user.goal) * 100)}%
+                  {Math.round((user.Current_Savings / user.Projected_Pension_Amount) * 100)}%
                 </span>
               </div>
             </div>

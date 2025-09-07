@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, Send, Bot, User, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { dataService } from "@/services/dataService";
 
 interface ChatMessage {
   id: string;
@@ -16,58 +17,37 @@ interface ChatbotPageProps {
   user: any;
 }
 
-export function ChatbotPage({ user, onGoalChange }: any) {
+export function ChatbotPage({ user }: ChatbotPageProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'bot',
-      content: `Hello ${user.name}! I'm your AI superannuation advisor. I can help you understand your retirement projections, analyze your portfolio, and answer questions about your financial goals. What would you like to know?`,
+      content: `Hello! I'm your AI superannuation advisor. I can help you understand your retirement projections, analyze your portfolio, and answer questions about your financial goals. What would you like to know?`,
       timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages, isLoading]);
 
   const sampleQuestions = [
+    "What is my risk category?",
     "What if I increase my monthly contribution by $200?",
-    "How safe is my portfolio if markets dip 20%?",
-    "Should I consider changing my risk profile?",
-    "What are the tax benefits of my superannuation?",
-    "How does my portfolio compare to others my age?",
-    "What's the best withdrawal strategy for retirement?"
+    "How much will I retire with?",
+    "How do I compare to others my age?",
+    "Am I on track for retirement?",
+    "Should I consider changing my risk profile?"
   ];
-
-  const simulateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-    // Simple keyword-based responses (in a real app, this would call ML models)
-    if (lowerMessage.includes('contribution') || lowerMessage.includes('increase')) {
-      return `Great question! If you increase your monthly contribution by $200, your projected retirement balance would grow from $${user.projectedPensionAmount.toLocaleString()} to approximately $${(user.projectedPensionAmount + 200 * 12 * (65 - user.age)).toLocaleString()}. This extra $2,400 annually could significantly boost your retirement income. Based on your current age of ${user.age}, this additional contribution would compound over ${65 - user.age} years.`;
-    }
-    
-    if (lowerMessage.includes('market') || lowerMessage.includes('dip') || lowerMessage.includes('crash')) {
-      return `Market volatility is a valid concern. With your current ${user.riskProfile} risk profile, a 20% market dip would reduce your portfolio by approximately $${(user.currentSavings * 0.2).toLocaleString()}. However, your diversified portfolio across ${user.investmentType.join(', ')} helps mitigate risk. Historically, markets recover over time, and your long-term strategy should weather short-term volatility. Consider your time horizon - you have ${65 - user.age} years until retirement.`;
-    }
-    
-    if (lowerMessage.includes('risk') || lowerMessage.includes('profile')) {
-      return `Your current risk profile is ${user.riskProfile}. This means you're ${user.riskProfile === 'Low' ? 'prioritizing capital preservation with lower volatility' : user.riskProfile === 'Medium' ? 'balancing growth and stability' : 'focusing on growth with higher volatility'}. Given your age of ${user.age}, this seems appropriate. If you're ${user.age < 50 ? 'younger' : 'older'}, you might consider ${user.age < 50 ? 'increasing' : 'reducing'} risk for ${user.age < 50 ? 'higher growth potential' : 'more stability'}.`;
-    }
-    
-    if (lowerMessage.includes('tax') || lowerMessage.includes('benefit')) {
-      return `Your superannuation offers excellent tax benefits! ${user.taxBenefitsEligibility ? 'You are eligible for concessional contributions taxed at only 15% (vs your marginal tax rate).' : 'While you may not be eligible for all tax benefits, your superannuation still offers tax advantages.'} Investment earnings are taxed at a maximum of 15%, and withdrawals after age 60 are generally tax-free. This makes superannuation one of the most tax-effective ways to save for retirement.`;
-    }
-    
-    if (lowerMessage.includes('compare') || lowerMessage.includes('peer') || lowerMessage.includes('others')) {
-      return `Compared to others your age, you're doing well! Your current balance of $${user.currentSavings.toLocaleString()} puts you in a strong position. You're contributing more than most people in your age group, and your projected payout of $${user.expectedAnnualPayout.toLocaleString()} annually would provide a comfortable retirement. Your investment strategy with ${user.investmentType.join(' and ')} is diversified and appropriate for your risk profile.`;
-    }
-    
-    if (lowerMessage.includes('withdrawal') || lowerMessage.includes('strategy')) {
-      return `For retirement withdrawals, consider these strategies: 1) Fixed withdrawal strategy - withdraw a fixed amount annually (e.g., 4% of your balance), 2) Dynamic strategy - adjust based on market conditions, 3) Bucket strategy - separate assets by time horizon. Given your ${user.riskProfile} risk profile and expected balance of $${user.projectedPensionAmount.toLocaleString()}, a dynamic strategy might work well. Start with 4-5% annual withdrawals and adjust based on market performance.`;
-    }
-    
-    // Default response
-    return `That's an interesting question about your superannuation! Based on your profile, I can see you're ${user.age} years old with a ${user.riskProfile} risk tolerance and a current balance of $${user.currentSavings.toLocaleString()}. Your projected retirement balance is $${user.projectedPensionAmount.toLocaleString()}. For more specific advice, I'd recommend consulting with a qualified financial advisor who can provide personalized recommendations based on your complete financial situation.`;
-  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -83,18 +63,30 @@ export function ChatbotPage({ user, onGoalChange }: any) {
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate AI processing time
-    setTimeout(() => {
+    try {
+      // Call the real AI API
+      const response = await dataService.sendChatMessage(user.User_ID, inputValue);
+      
       const botResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: simulateAIResponse(inputValue),
+        content: response || "I'm sorry, I couldn't process your request at the moment. Please try again.",
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      const botResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: "I'm sorry, I'm having trouble connecting to the AI service. Please make sure the backend is running.",
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSampleQuestion = (question: string) => {
@@ -117,7 +109,7 @@ export function ChatbotPage({ user, onGoalChange }: any) {
         </CardHeader>
         <CardContent>
           <div className="h-96 border border-border rounded-xl overflow-hidden">
-            <ScrollArea className="h-full">
+            <ScrollArea ref={scrollAreaRef} className="h-full">
               <div className="p-4 space-y-4">
                 {messages.map((message) => (
                   <div

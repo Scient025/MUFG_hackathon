@@ -1,16 +1,11 @@
 import { Wallet, Target, TrendingUp, Building, PiggyBank } from "lucide-react";
 
 interface MetricsGridProps {
-  metrics: {
-    currentBalance: number;
-    percentToGoal: number;
-    monthlyIncomeAt65: number;
-    employerContribution: number;
-    totalAnnualContribution: number;
-  };
+  user: any;
+  summaryStats: any;
 }
 
-export function MetricsGrid({ metrics }: MetricsGridProps) {
+export function MetricsGrid({ user, summaryStats }: MetricsGridProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
@@ -20,38 +15,45 @@ export function MetricsGrid({ metrics }: MetricsGridProps) {
     }).format(amount);
   };
 
+  // Safe data extraction with fallbacks
+  const currentBalance = user?.Current_Savings || 0;
+  const percentToGoal = summaryStats?.percent_to_goal || 0;
+  const monthlyIncomeAt65 = summaryStats?.monthly_income_at_retirement || 0;
+  const employerContribution = user?.Employer_Contribution || 0;
+  const totalAnnualContribution = user?.Total_Annual_Contribution || 0;
+
   const metricCards = [
     {
       title: "Current Balance",
-      value: formatCurrency(metrics.currentBalance),
+      value: formatCurrency(currentBalance),
       icon: Wallet,
       status: "good",
       subtitle: "Total superannuation"
     },
     {
       title: "% to Goal",
-      value: `${metrics.percentToGoal}%`,
+      value: `${percentToGoal.toFixed(2)}%`,
       icon: Target,
-      status: metrics.percentToGoal >= 75 ? "good" : metrics.percentToGoal >= 50 ? "warning" : "risk",
+      status: percentToGoal >= 75 ? "good" : percentToGoal >= 50 ? "warning" : "risk",
       subtitle: "On track to retirement"
     },
     {
       title: "Estimated Monthly Income at 65",
-      value: formatCurrency(metrics.monthlyIncomeAt65),
+      value: formatCurrency(monthlyIncomeAt65),
       icon: TrendingUp,
       status: "good",
       subtitle: "Expected pension"
     },
     {
       title: "Employer Contribution",
-      value: formatCurrency(metrics.employerContribution),
+      value: formatCurrency(employerContribution),
       icon: Building,
       status: "good",
       subtitle: "This financial year"
     },
     {
       title: "Total Annual Contribution",
-      value: formatCurrency(metrics.totalAnnualContribution),
+      value: formatCurrency(totalAnnualContribution),
       icon: PiggyBank,
       status: "good",
       subtitle: "Personal + employer"

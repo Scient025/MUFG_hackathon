@@ -17,10 +17,10 @@ export function EducationPage({ user }: EducationPageProps) {
       id: 'tax-benefits',
       title: 'Tax Benefits',
       icon: DollarSign,
-      status: user.taxBenefitsEligibility,
+      status: user.Tax_Benefits_Eligibility,
       description: 'Understanding superannuation tax advantages',
       details: {
-        eligible: user.taxBenefitsEligibility,
+        eligible: user.Tax_Benefits_Eligibility,
         benefits: [
           'Concessional contributions taxed at 15% (vs your marginal tax rate)',
           'Non-concessional contributions are tax-free',
@@ -34,10 +34,10 @@ export function EducationPage({ user }: EducationPageProps) {
       id: 'government-pension',
       title: 'Government Pension Eligibility',
       icon: Shield,
-      status: user.governmentPensionEligibility,
+      status: user.Government_Pension_Eligibility,
       description: 'Age Pension and government support',
       details: {
-        eligible: user.governmentPensionEligibility,
+        eligible: user.Government_Pension_Eligibility,
         benefits: [
           'Age Pension provides income support',
           'Asset and income tests apply',
@@ -51,10 +51,10 @@ export function EducationPage({ user }: EducationPageProps) {
       id: 'private-pension',
       title: 'Private Pension Eligibility',
       icon: GraduationCap,
-      status: user.privatePensionEligibility,
+      status: user.Private_Pension_Eligibility,
       description: 'Private pension and superannuation options',
       details: {
-        eligible: user.privatePensionEligibility,
+        eligible: user.Private_Pension_Eligibility,
         benefits: [
           'Account-based pensions from super',
           'Transition to retirement pensions',
@@ -128,19 +128,19 @@ export function EducationPage({ user }: EducationPageProps) {
             </div>
             <div className="text-center p-4 bg-muted/30 rounded-xl">
               <div className="text-3xl font-bold text-green-600">
-                {user.taxBenefitsEligibility ? 'Yes' : 'No'}
+                {user.Tax_Benefits_Eligibility ? 'Yes' : 'No'}
               </div>
               <div className="text-muted-foreground text-lg">Tax Benefits</div>
             </div>
             <div className="text-center p-4 bg-muted/30 rounded-xl">
               <div className="text-3xl font-bold text-blue-600">
-                {user.governmentPensionEligibility ? 'Yes' : 'No'}
+                {user.Government_Pension_Eligibility ? 'Yes' : 'No'}
               </div>
               <div className="text-muted-foreground text-lg">Age Pension</div>
             </div>
             <div className="text-center p-4 bg-muted/30 rounded-xl">
               <div className="text-3xl font-bold text-purple-600">
-                {user.privatePensionEligibility ? 'Yes' : 'No'}
+                {user.Private_Pension_Eligibility ? 'Yes' : 'No'}
               </div>
               <div className="text-muted-foreground text-lg">Private Pension</div>
             </div>

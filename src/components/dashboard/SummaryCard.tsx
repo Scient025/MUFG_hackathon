@@ -1,21 +1,13 @@
 import { TrendingUp, Target, DollarSign, Users, TrendingDown } from "lucide-react";
 
 interface SummaryCardProps {
-  projection: {
-    retirementAmount: number;
-    monthlyIncreaseNeeded: number;
-    targetAmount: number;
-    percentToGoal: number;
-    monthlyIncomeAt65: number;
-  };
-  peerComparison: {
-    investmentTypes: any;
-    ageGroup: any;
-    riskGroup: any;
-  };
+  user: any;
+  projection: any;
+  peerComparison: any;
+  summaryStats?: any;
 }
 
-export function SummaryCard({ projection, peerComparison }: SummaryCardProps) {
+export function SummaryCard({ user, projection, peerComparison, summaryStats }: SummaryCardProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
@@ -34,11 +26,19 @@ export function SummaryCard({ projection, peerComparison }: SummaryCardProps) {
     }).format(amount);
   };
 
-  // Find user's primary investment type for peer comparison
-  const primaryInvestment = Object.keys(peerComparison.investmentTypes).find(
-    type => peerComparison.investmentTypes[type].count > 0
+  // Safe data extraction with fallbacks
+  const retirementAmount = projection?.adjusted_projection || user?.Projected_Pension_Amount || 0;
+  const monthlyIncreaseNeeded = projection?.monthly_increase_needed || 0;
+  const targetAmount = user?.Projected_Pension_Amount || 0;
+  const percentToGoal = summaryStats?.percent_to_goal || 0;
+  const monthlyIncomeAt65 = projection?.monthly_income_at_retirement || 0;
+
+  // Safe peer comparison data
+  const investmentTypes = peerComparison?.investment_types || {};
+  const primaryInvestment = Object.keys(investmentTypes).find(
+    type => investmentTypes[type]?.count > 0
   );
-  const investmentPercentage = primaryInvestment ? peerComparison.investmentTypes[primaryInvestment].percentage : 0;
+  const investmentPercentage = primaryInvestment ? investmentTypes[primaryInvestment]?.percentage || 0 : 0;
   
   return (
     <div className="summary-card mb-8">
@@ -63,7 +63,7 @@ export function SummaryCard({ projection, peerComparison }: SummaryCardProps) {
             <h3 className="text-2xl font-semibold text-white">You will retire with</h3>
           </div>
           <div className="text-4xl lg:text-5xl font-bold text-white mb-3">
-            {formatCurrency(projection.retirementAmount)}
+            {formatCurrency(retirementAmount)}
           </div>
           <div className="text-white/80 text-lg">
             Estimated retirement balance at age 65
@@ -79,10 +79,10 @@ export function SummaryCard({ projection, peerComparison }: SummaryCardProps) {
             You need to increase contributions by
           </div>
           <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
-            {formatMonthly(projection.monthlyIncreaseNeeded)}/month
+            {formatMonthly(monthlyIncreaseNeeded)}/month
           </div>
           <div className="text-white/80 text-lg">
-            to hit your {formatCurrency(projection.targetAmount)} target
+            to hit your {formatCurrency(targetAmount)} target
           </div>
         </div>
       </div>
@@ -110,10 +110,10 @@ export function SummaryCard({ projection, peerComparison }: SummaryCardProps) {
               Your Progress
             </div>
             <div className="text-xl font-semibold text-white">
-              You contribute more than {Math.round(100 - (projection.percentToGoal * 0.8))}% of peers
+              You contribute more than {Math.round(100 - (percentToGoal * 0.8))}% of peers
             </div>
             <div className="text-white/80 mt-1">
-              Your projected payout is in the top {Math.round(100 - projection.percentToGoal + 20)}% for your age group
+              Your projected payout is in the top {Math.round(100 - percentToGoal + 20)}% for your age group
             </div>
           </div>
         </div>

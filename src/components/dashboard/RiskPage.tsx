@@ -12,7 +12,7 @@ interface RiskPageProps {
 }
 
 export function RiskPage({ user, onRiskChange }: RiskPageProps) {
-  const [riskTolerance, setRiskTolerance] = useState(user.riskTolerance);
+  const [riskTolerance, setRiskTolerance] = useState(user.Risk_Tolerance || 'Medium');
   const [allocationInputs, setAllocationInputs] = useState({
     shares: 60,
     realEstate: 20,

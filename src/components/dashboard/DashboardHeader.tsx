@@ -4,7 +4,7 @@ import { UserProfile } from "@/services/dataService";
 
 interface DashboardHeaderProps {
   user: UserProfile;
-  goalProgress: number;
+  goalProgress: any;
 }
 
 export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
@@ -22,30 +22,30 @@ export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
       <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
         <div className="flex items-center gap-6">
           <Avatar className="w-20 h-20 lg:w-24 lg:h-24">
-            <AvatarImage src="" alt={user.name} />
+            <AvatarImage src="" alt={user.User_ID} />
             <AvatarFallback className="text-2xl lg:text-3xl font-bold bg-primary text-primary-foreground">
-              {user.name.split(' ').map(n => n[0]).join('')}
+              {user.User_ID.slice(-2)}
             </AvatarFallback>
           </Avatar>
           <div>
             <h1 className="text-3xl lg:text-4xl font-bold text-card-foreground mb-3">
-              Welcome back, {user.name}
+              Welcome back, {user.Name || user.User_ID}
             </h1>
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                Age {user.age}
+                Age {user.Age}
               </Badge>
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                {user.maritalStatus}
+                {user.Marital_Status}
               </Badge>
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                {user.dependents} {user.dependents === 1 ? 'Dependent' : 'Dependents'}
+                {user.Number_of_Dependents} {user.Number_of_Dependents === 1 ? 'Dependent' : 'Dependents'}
               </Badge>
               <Badge 
                 variant="outline" 
-                className={`text-lg py-2 px-4 font-medium ${getRiskColor(user.riskProfile)}`}
+                className={`text-lg py-2 px-4 font-medium ${getRiskColor(user.Risk_Tolerance)}`}
               >
-                {user.riskProfile} Risk
+                {user.Risk_Tolerance} Risk
               </Badge>
             </div>
           </div>
@@ -53,7 +53,9 @@ export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
         
         <div className="lg:ml-auto text-center lg:text-right">
           <div className="text-lg text-muted-foreground mb-2 font-medium">Retirement Goal Progress</div>
-          <div className="text-4xl lg:text-5xl font-bold text-success mb-3">{goalProgress}%</div>
+          <div className="text-4xl lg:text-5xl font-bold text-success mb-3">
+            {Math.round(goalProgress?.percentage || 0)}%
+          </div>
           <div className="text-xl text-success font-semibold">
             You're on track! Keep it up! 🎯
           </div>

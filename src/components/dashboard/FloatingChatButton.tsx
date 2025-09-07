@@ -1,9 +1,82 @@
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { dataService } from "@/services/dataService";
 
-export function FloatingChatButton() {
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'bot';
+  content: string;
+  timestamp: Date;
+}
+
+interface FloatingChatButtonProps {
+  user: any;
+}
+
+export function FloatingChatButton({ user }: FloatingChatButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      type: 'bot',
+      content: `Hi ${user?.User_ID || 'there'}! I'm your AI superannuation advisor. How can I help with your superannuation questions?`,
+      timestamp: new Date()
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const chatAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (chatAreaRef.current) {
+      chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+    }
+  }, [messages, isLoading]);
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !user?.User_ID) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: inputValue,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      const response = await dataService.sendChatMessage(user.User_ID, inputValue);
+      
+      const botResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: response || "I'm sorry, I couldn't process your request at the moment. Please try again.",
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      const botResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: "I'm sorry, I'm having trouble connecting to the AI service. Please make sure the backend is running.",
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botResponse]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickQuestion = (question: string) => {
+    setInputValue(question);
+  };
 
   return (
     <>
@@ -30,7 +103,7 @@ export function FloatingChatButton() {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 h-96 bg-card border border-card-border rounded-xl shadow-xl z-40 flex flex-col">
+        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-card border border-card-border rounded-xl shadow-xl z-40 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-card-border">
             <div className="flex items-center gap-3">
@@ -45,23 +118,52 @@ export function FloatingChatButton() {
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 p-4 overflow-y-auto">
-            <div className="space-y-4">
-              {/* AI Welcome Message */}
-              <div className="flex gap-3">
-                <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                  <MessageCircle className="w-3 h-3" />
+          <div ref={chatAreaRef} className="flex-1 p-4 overflow-y-auto">
+            <div className="space-y-3">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.type === 'bot' && (
+                    <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="w-3 h-3" />
+                    </div>
+                  )}
+                  
+                  <div className={`max-w-[80%] ${message.type === 'user' ? 'order-first' : ''}`}>
+                    <div
+                      className={`p-3 rounded-xl text-sm ${
+                        message.type === 'user'
+                          ? 'bg-primary text-primary-foreground ml-auto'
+                          : 'bg-muted/50'
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+                  </div>
+                  
+                  {message.type === 'user' && (
+                    <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <User className="w-3 h-3" />
+                    </div>
+                  )}
                 </div>
-                <div className="bg-muted/50 rounded-xl p-3 max-w-64">
-                  <p className="text-sm">Hi Margaret! I'm here to help with your superannuation questions. You can ask me about:</p>
-                  <ul className="text-xs mt-2 space-y-1 text-muted-foreground">
-                    <li>• Your retirement projections</li>
-                    <li>• Investment strategies</li>
-                    <li>• Contribution options</li>
-                    <li>• Government benefits</li>
-                  </ul>
+              ))}
+              
+              {isLoading && (
+                <div className="flex gap-2 justify-start">
+                  <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <Bot className="w-3 h-3" />
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span className="text-sm">AI is thinking...</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -70,23 +172,41 @@ export function FloatingChatButton() {
             <div className="flex gap-2">
               <input
                 type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type your question..."
                 className="flex-1 px-3 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                disabled={isLoading}
               />
-              <Button size="sm" className="px-3">
-                <MessageCircle className="w-4 h-4" />
+              <Button 
+                size="sm" 
+                className="px-3"
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading}
+              >
+                <Send className="w-4 h-4" />
               </Button>
             </div>
             
             {/* Quick Questions */}
             <div className="flex flex-wrap gap-2 mt-3">
-              <button className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors">
+              <button 
+                className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors"
+                onClick={() => handleQuickQuestion("How to increase super?")}
+              >
                 How to increase super?
               </button>
-              <button className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors">
-                Retirement timeline
+              <button 
+                className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors"
+                onClick={() => handleQuickQuestion("What is my risk category?")}
+              >
+                Risk category
               </button>
-              <button className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors">
+              <button 
+                className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-full transition-colors"
+                onClick={() => handleQuickQuestion("Tax benefits")}
+              >
                 Tax benefits
               </button>
             </div>
