@@ -2,41 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Fintech Dashboard Design System - Accessible for older Australians */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* Core fintech palette */
+    --background: 248 250 252;
+    --foreground: 226 232 240;
+    
+    /* Trust & Professional */
+    --primary: 213 94% 18%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 213 94% 88%;
+    
+    /* Financial success indicators */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 76% 92%;
+    
+    /* Warning/attention */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 92% 95%;
+    
+    /* Risk/danger */
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+    --danger-light: 0 84% 95%;
+    
+    /* Neutral tones */
+    --neutral: 215 28% 17%;
+    --neutral-foreground: 0 0% 100%;
+    --neutral-light: 215 28% 95%;
+    
+    /* Card system */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    --card-foreground: 215 28% 17%;
+    --card-border: 214 32% 91%;
+    
+    /* Interface elements */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 213 94% 18%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    /* Shadows & effects */
+    --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --gradient-primary: linear-gradient(135deg, hsl(213, 94%, 18%), hsl(213, 94%, 28%));
+    --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 76%, 46%));
+    
+    --radius: 12px;
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +118,50 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  /* Accessibility typography for older users */
+  h1 { @apply text-4xl md:text-5xl font-bold leading-tight; }
+  h2 { @apply text-3xl md:text-4xl font-semibold leading-tight; }
+  h3 { @apply text-2xl md:text-3xl font-semibold leading-normal; }
+  h4 { @apply text-xl md:text-2xl font-medium leading-normal; }
+  
+  .text-large { @apply text-lg md:text-xl; }
+  .text-xlarge { @apply text-xl md:text-2xl; }
+  
+  /* Card styling */
+  .card-shadow { box-shadow: var(--shadow-card); }
+  .card-soft-shadow { box-shadow: var(--shadow-soft); }
+}
+
+@layer components {
+  /* Dashboard Card Variants */
+  .dashboard-card {
+    @apply bg-card border border-card-border rounded-xl p-6 card-shadow transition-all duration-200 hover:shadow-lg;
+  }
+  
+  .metric-card {
+    @apply dashboard-card text-center;
+  }
+  
+  .summary-card {
+    @apply dashboard-card bg-gradient-to-br from-primary to-primary/90 text-primary-foreground;
+  }
+  
+  /* Status indicators */
+  .status-good { @apply bg-success/10 text-success border-success/20; }
+  .status-warning { @apply bg-warning/10 text-warning border-warning/20; }
+  .status-risk { @apply bg-danger/10 text-danger border-danger/20; }
+  .status-neutral { @apply bg-neutral/10 text-neutral border-neutral/20; }
+  
+  /* Button variants for dashboard */
+  .btn-action {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-xl font-medium text-large transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-card border border-card-border hover:bg-muted px-6 py-3 rounded-xl font-medium text-large transition-colors duration-200;
   }
 }
