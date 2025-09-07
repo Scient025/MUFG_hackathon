@@ -6,19 +6,19 @@
 
 @layer base {
   :root {
-    /* Core fintech palette */
-    --background: 248 250 252;
-    --foreground: 226 232 240;
+    /* Core fintech palette - proper HSL values */
+    --background: 0 0% 100%;
+    --foreground: 215 28% 17%;
     
     /* Trust & Professional */
     --primary: 213 94% 18%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 213 94% 88%;
+    --primary-light: 213 94% 95%;
     
     /* Financial success indicators */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 92%;
+    --success-light: 142 76% 95%;
     
     /* Warning/attention */
     --warning: 38 92% 50%;
