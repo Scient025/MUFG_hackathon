@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, PieChart, Target, BookOpen } from "lucide-react";
+import { BarChart3, PieChart, Target, BookOpen, Shield, MessageCircle } from "lucide-react";
 
 interface NavigationTabsProps {
   activeTab: string;
@@ -10,13 +10,13 @@ interface NavigationTabsProps {
 export function NavigationTabs({ activeTab, onTabChange }: NavigationTabsProps) {
   const tabs = [
     {
-      id: "performance",
-      label: "Performance",
+      id: "dashboard",
+      label: "Dashboard",
       icon: BarChart3
     },
     {
-      id: "allocation",
-      label: "Allocation", 
+      id: "portfolio",
+      label: "Portfolio", 
       icon: PieChart
     },
     {
@@ -25,16 +25,26 @@ export function NavigationTabs({ activeTab, onTabChange }: NavigationTabsProps) 
       icon: Target
     },
     {
-      id: "learn",
-      label: "Learn",
+      id: "education",
+      label: "Education",
       icon: BookOpen
+    },
+    {
+      id: "risk",
+      label: "Risk",
+      icon: Shield
+    },
+    {
+      id: "chatbot",
+      label: "Chatbot",
+      icon: MessageCircle
     }
   ];
 
   return (
     <div className="dashboard-card mb-8">
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-auto p-2 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-6 h-auto p-2 bg-muted/50">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (

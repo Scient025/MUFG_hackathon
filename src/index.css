@@ -6,70 +6,63 @@
 
 @layer base {
   :root {
-    /* Core fintech palette - proper HSL values */
+    /* High-contrast fintech palette for accessibility */
     --background: 0 0% 100%;
-    --foreground: 215 28% 17%;
+    --foreground: 0 0% 10%;
     
-    /* Trust & Professional */
-    --primary: 213 94% 18%;
+    /* Trust & Professional - High contrast */
+    --primary: 220 100% 25%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 213 94% 95%;
+    --primary-light: 220 100% 95%;
     
-    /* Financial success indicators */
-    --success: 142 76% 36%;
+    /* Financial success indicators - High contrast */
+    --success: 120 100% 25%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 95%;
+    --success-light: 120 100% 95%;
     
-    /* Warning/attention */
-    --warning: 38 92% 50%;
+    /* Warning/attention - High contrast */
+    --warning: 45 100% 40%;
     --warning-foreground: 0 0% 100%;
-    --warning-light: 38 92% 95%;
+    --warning-light: 45 100% 95%;
     
-    /* Risk/danger */
-    --danger: 0 84% 60%;
+    /* Risk/danger - High contrast */
+    --danger: 0 100% 40%;
     --danger-foreground: 0 0% 100%;
-    --danger-light: 0 84% 95%;
+    --danger-light: 0 100% 95%;
     
-    /* Neutral tones */
-    --neutral: 215 28% 17%;
+    /* Neutral tones - High contrast */
+    --neutral: 0 0% 20%;
     --neutral-foreground: 0 0% 100%;
-    --neutral-light: 215 28% 95%;
+    --neutral-light: 0 0% 95%;
     
-    /* Card system */
+    /* Card system - High contrast */
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 17%;
-    --card-border: 214 32% 91%;
+    --card-foreground: 0 0% 10%;
+    --card-border: 0 0% 80%;
     
-    /* Interface elements */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 213 94% 18%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* Interface elements - High contrast */
+    --border: 0 0% 80%;
+    --input: 0 0% 95%;
+    --ring: 220 100% 25%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
     
-    /* Shadows & effects */
-    --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --gradient-primary: linear-gradient(135deg, hsl(213, 94%, 18%), hsl(213, 94%, 28%));
-    --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%), hsl(142, 76%, 46%));
+    /* Shadows & effects - Enhanced for accessibility */
+    --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+    --shadow-card: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    --gradient-primary: linear-gradient(135deg, hsl(220, 100%, 25%), hsl(220, 100%, 35%));
+    --gradient-success: linear-gradient(135deg, hsl(120, 100%, 25%), hsl(120, 100%, 35%));
     
     --radius: 12px;
 
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 220 100% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 95%;
+    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-border: 0 0% 80%;
+    --sidebar-ring: 220 100% 25%;
   }
 
   .dark {
@@ -118,18 +111,51 @@
 
   body {
     @apply bg-background text-foreground;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 18px; /* Larger base font size for accessibility */
+    line-height: 1.7; /* Increased line height for readability */
+    font-weight: 400;
   }
   
-  /* Accessibility typography for older users */
-  h1 { @apply text-4xl md:text-5xl font-bold leading-tight; }
-  h2 { @apply text-3xl md:text-4xl font-semibold leading-tight; }
-  h3 { @apply text-2xl md:text-3xl font-semibold leading-normal; }
-  h4 { @apply text-xl md:text-2xl font-medium leading-normal; }
+  /* Enhanced accessibility typography for older users */
+  h1 { 
+    @apply text-5xl md:text-6xl font-bold leading-tight;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  h2 { 
+    @apply text-4xl md:text-5xl font-semibold leading-tight;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h3 { 
+    @apply text-3xl md:text-4xl font-semibold leading-normal;
+    font-weight: 600;
+  }
+  h4 { 
+    @apply text-2xl md:text-3xl font-medium leading-normal;
+    font-weight: 500;
+  }
   
-  .text-large { @apply text-lg md:text-xl; }
-  .text-xlarge { @apply text-xl md:text-2xl; }
+  /* Large text utilities for accessibility */
+  .text-large { @apply text-xl md:text-2xl; }
+  .text-xlarge { @apply text-2xl md:text-3xl; }
+  .text-xxlarge { @apply text-3xl md:text-4xl; }
+  
+  /* Focus indicators for accessibility */
+  *:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+  
+  /* High contrast button states */
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  button:active {
+    transform: translateY(0);
+  }
   
   /* Card styling */
   .card-shadow { box-shadow: var(--shadow-card); }
@@ -137,31 +163,85 @@
 }
 
 @layer components {
-  /* Dashboard Card Variants */
+  /* Enhanced Dashboard Card Variants for Accessibility */
   .dashboard-card {
-    @apply bg-card border border-card-border rounded-xl p-6 card-shadow transition-all duration-200 hover:shadow-lg;
+    @apply bg-card border-2 border-card-border rounded-xl p-8 card-shadow transition-all duration-200 hover:shadow-lg;
+    min-height: 200px; /* Ensure consistent card heights */
   }
   
   .metric-card {
     @apply dashboard-card text-center;
+    min-height: 180px;
   }
   
   .summary-card {
     @apply dashboard-card bg-gradient-to-br from-primary to-primary/90 text-primary-foreground;
+    border: 3px solid hsl(var(--primary));
   }
   
-  /* Status indicators */
-  .status-good { @apply bg-success/10 text-success border-success/20; }
-  .status-warning { @apply bg-warning/10 text-warning border-warning/20; }
-  .status-risk { @apply bg-danger/10 text-danger border-danger/20; }
-  .status-neutral { @apply bg-neutral/10 text-neutral border-neutral/20; }
+  /* High-contrast status indicators */
+  .status-good { 
+    @apply bg-green-100 text-green-800 border-2 border-green-300 font-semibold; 
+  }
+  .status-warning { 
+    @apply bg-yellow-100 text-yellow-800 border-2 border-yellow-300 font-semibold; 
+  }
+  .status-risk { 
+    @apply bg-red-100 text-red-800 border-2 border-red-300 font-semibold; 
+  }
+  .status-neutral { 
+    @apply bg-gray-100 text-gray-800 border-2 border-gray-300 font-semibold; 
+  }
   
-  /* Button variants for dashboard */
+  /* Enhanced button variants for accessibility */
   .btn-action {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-xl font-medium text-large transition-colors duration-200;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-4 rounded-xl font-semibold text-xl transition-all duration-200 border-2 border-primary;
+    min-height: 56px; /* Minimum touch target size */
   }
   
   .btn-secondary {
-    @apply bg-card border border-card-border hover:bg-muted px-6 py-3 rounded-xl font-medium text-large transition-colors duration-200;
+    @apply bg-card border-2 border-card-border hover:bg-muted px-8 py-4 rounded-xl font-semibold text-xl transition-all duration-200;
+    min-height: 56px; /* Minimum touch target size */
+  }
+  
+  /* Accessibility-focused form elements */
+  .form-input {
+    @apply border-2 border-border rounded-xl px-4 py-3 text-lg font-medium;
+    min-height: 48px;
+  }
+  
+  .form-input:focus {
+    @apply border-primary ring-2 ring-primary/20;
+  }
+  
+  /* High-contrast progress bars */
+  .progress-bar {
+    @apply bg-gray-200 rounded-full overflow-hidden;
+    height: 12px;
+  }
+  
+  .progress-fill {
+    @apply bg-primary rounded-full transition-all duration-300;
+    height: 100%;
+  }
+  
+  /* Enhanced tooltips for accessibility */
+  .tooltip-content {
+    @apply bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium;
+    max-width: 300px;
+  }
+  
+  /* Large, accessible navigation */
+  .nav-item {
+    @apply px-6 py-4 text-lg font-medium rounded-xl transition-all duration-200;
+    min-height: 56px;
+  }
+  
+  .nav-item:hover {
+    @apply bg-muted transform scale-105;
+  }
+  
+  .nav-item.active {
+    @apply bg-primary text-primary-foreground font-semibold;
   }
 }
