@@ -6,6 +6,7 @@ import { AssetAllocation } from "@/components/dashboard/AssetAllocation";
 import { PortfolioGrowth } from "@/components/dashboard/PortfolioGrowth";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { NavigationTabs } from "@/components/dashboard/NavigationTabs";
+import { FloatingChatButton } from "@/components/dashboard/FloatingChatButton";
 
 // Sample data for the dashboard
 const userData = {
@@ -271,6 +272,9 @@ export default function Dashboard() {
         
         {/* Quick Actions */}
         <QuickActions />
+        
+        {/* Floating Chat Button */}
+        <FloatingChatButton />
       </div>
     </div>
   );
