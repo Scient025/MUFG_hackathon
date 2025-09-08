@@ -26,7 +26,7 @@ export function NavigationTabs({ activeTab, onTabChange }: NavigationTabsProps) 
     },
     {
       id: "education",
-      label: "Education",
+      label: "Guide",
       icon: BookOpen
     },
     {
