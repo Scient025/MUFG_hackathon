@@ -20,10 +20,185 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+interface ConversationStep {
+  id: string;
+  question: string;
+  field: keyof SignupData;
+  type: 'text' | 'number' | 'select';
+  options?: string[];
+  validation?: (value: any) => boolean;
+  parser?: (input: string) => any;
+}
+
 export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
   // Gemini API constants
   const GEMINI_API_KEY = 'AIzaSyDBVO_5h4L6j2-M1q-1PecgC42sFQYWv0w';
   const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  // Define conversation steps
+  const conversationSteps: ConversationStep[] = [
+    {
+      id: 'name',
+      question: "Let's start with the basics. What's your full name?",
+      field: 'name',
+      type: 'text',
+      validation: (value: string) => value.length > 0
+    },
+    {
+      id: 'age',
+      question: "How old are you?",
+      field: 'age',
+      type: 'number',
+      validation: (value: number) => value >= 18 && value <= 100,
+      parser: (input: string) => {
+        const ageMatch = input.match(/(\d+)/);
+        return ageMatch ? parseInt(ageMatch[1]) : null;
+      }
+    },
+    {
+      id: 'gender',
+      question: "What's your gender?",
+      field: 'gender',
+      type: 'select',
+      options: ['Male', 'Female', 'Other']
+    },
+    {
+      id: 'country',
+      question: "Which country are you from?",
+      field: 'country',
+      type: 'select',
+      options: ['Australia', 'New Zealand', 'United Kingdom', 'United States']
+    },
+    {
+      id: 'annual_income',
+      question: "What's your annual income? (You can say something like '$75,000' or '75k')",
+      field: 'annual_income',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
+        if (match) {
+          let amount = match[1].replace(/,/g, '');
+          if (amount.toLowerCase().endsWith('k')) {
+            amount = amount.slice(0, -1) + '000';
+          }
+          return parseFloat(amount);
+        }
+        return null;
+      }
+    },
+    {
+      id: 'current_savings',
+      question: "How much do you currently have saved? (Include all your savings and investments)",
+      field: 'current_savings',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
+        if (match) {
+          let amount = match[1].replace(/,/g, '');
+          if (amount.toLowerCase().endsWith('k')) {
+            amount = amount.slice(0, -1) + '000';
+          }
+          return parseFloat(amount);
+        }
+        return null;
+      }
+    },
+    {
+      id: 'employment_status',
+      question: "What's your current employment status?",
+      field: 'employment_status',
+      type: 'select',
+      options: ['Full-time', 'Part-time', 'Unemployed', 'Self-employed', 'Retired']
+    },
+    {
+      id: 'retirement_age_goal',
+      question: "At what age would you like to retire?",
+      field: 'retirement_age_goal',
+      type: 'number',
+      validation: (value: number) => value >= 50 && value <= 80,
+      parser: (input: string) => {
+        const ageMatch = input.match(/(\d+)/);
+        return ageMatch ? parseInt(ageMatch[1]) : null;
+      }
+    },
+    {
+      id: 'contribution_amount',
+      question: "How much would you like to contribute monthly to your superannuation?",
+      field: 'contribution_amount',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
+        if (match) {
+          let amount = match[1].replace(/,/g, '');
+          if (amount.toLowerCase().endsWith('k')) {
+            amount = amount.slice(0, -1) + '000';
+          }
+          return parseFloat(amount);
+        }
+        return null;
+      }
+    },
+    {
+      id: 'employer_contribution',
+      question: "How much does your employer contribute monthly to your super?",
+      field: 'employer_contribution',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
+        if (match) {
+          let amount = match[1].replace(/,/g, '');
+          if (amount.toLowerCase().endsWith('k')) {
+            amount = amount.slice(0, -1) + '000';
+          }
+          return parseFloat(amount);
+        }
+        return null;
+      }
+    },
+    {
+      id: 'risk_tolerance',
+      question: "What's your risk tolerance for investments? Are you conservative (low risk), balanced (medium risk), or aggressive (high risk)?",
+      field: 'risk_tolerance',
+      type: 'select',
+      options: ['Low', 'Medium', 'High']
+    },
+    {
+      id: 'marital_status',
+      question: "What's your marital status?",
+      field: 'marital_status',
+      type: 'select',
+      options: ['Single', 'Married', 'Divorced', 'Widowed']
+    },
+    {
+      id: 'number_of_dependents',
+      question: "How many dependents do you have? (children or others you financially support)",
+      field: 'number_of_dependents',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+      }
+    },
+    {
+      id: 'financial_goals',
+      question: "What's your main financial goal?",
+      field: 'financial_goals',
+      type: 'select',
+      options: ['Retirement', 'Education', 'Home', 'Travel', 'Other']
+    },
+    {
+      id: 'investment_experience_level',
+      question: "How would you describe your investment experience?",
+      field: 'investment_experience_level',
+      type: 'select',
+      options: ['Beginner', 'Intermediate', 'Expert']
+    }
+  ];
 
   const [formData, setFormData] = useState<SignupData>({
     name: "",
@@ -55,11 +230,18 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'bot',
-      message: "Hi! I'm here to help you fill out your superannuation profile. You can tell me things like 'I'm 35 years old' or 'My annual income is $75,000' and I'll update the form for you automatically.",
+      message: "Hi! I'm here to help you set up your superannuation profile. I'll ask you a few questions to get everything set up perfectly for you. Let's get started!",
+      timestamp: new Date()
+    },
+    {
+      id: '2',
+      type: 'bot',
+      message: conversationSteps[0].question,
       timestamp: new Date()
     }
   ]);
@@ -91,42 +273,27 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     }
   };
 
-  const parseUserInputWithLLM = async (input: string): Promise<Partial<SignupData>> => {
-    const systemPrompt = `You are a form field extraction assistant. Analyze the user's message and extract relevant information for a superannuation signup form.
+  const parseUserInputWithLLM = async (input: string, step: ConversationStep): Promise<any> => {
+    const systemPrompt = `You are helping to extract a specific piece of information from user input for a form field.
 
-Available fields and their possible values:
-- name: string (full name)
-- age: number (18-100)
-- gender: "Male" | "Female" | "Other"
-- country: "Australia" | "New Zealand" | "United Kingdom" | "United States"
-- employment_status: "Full-time" | "Part-time" | "Unemployed" | "Self-employed" | "Retired"
-- annual_income: number (in dollars)
-- current_savings: number (in dollars)
-- retirement_age_goal: number (age when they want to retire)
-- risk_tolerance: "Low" | "Medium" | "High"
-- contribution_amount: number (monthly contribution in dollars)
-- contribution_frequency: "Monthly" | "Quarterly" | "Annually"
-- employer_contribution: number (employer's monthly contribution in dollars)
-- years_contributed: number (years they've been contributing)
-- investment_type: "Conservative" | "Balanced" | "Growth" | "Aggressive"
-- fund_name: string
-- marital_status: "Single" | "Married" | "Divorced" | "Widowed"
-- number_of_dependents: number (0 or more)
-- education_level: "High School" | "Bachelor" | "Master" | "PhD" | "Other"
-- health_status: "Excellent" | "Good" | "Fair" | "Poor"
-- home_ownership_status: "Own" | "Renting" | "Other"
-- investment_experience_level: "Beginner" | "Intermediate" | "Expert"
-- financial_goals: "Retirement" | "Education" | "Home" | "Travel" | "Other"
-- insurance_coverage: "None" | "Basic" | "Comprehensive"
-- pension_type: "Superannuation" | "401k" | "IRA" | "Other"
-- withdrawal_strategy: "Fixed" | "Variable" | "Minimum" | "Maximum"
+Field: ${step.field}
+Type: ${step.type}
+${step.options ? `Valid options: ${step.options.join(', ')}` : ''}
 
-Return ONLY a valid JSON object with the extracted fields. If you can't extract a value for a field, don't include it. 
-Handle currency amounts by removing currency symbols and 'k' suffixes (e.g., "$50k" becomes 50000).
+Instructions:
+- Extract only the specific information requested for the "${step.field}" field
+- Return ONLY a valid JSON object with a single field called "value"
+- For currency amounts, remove currency symbols and convert "k" to thousands (e.g., "$50k" becomes 50000)
+- For select fields, match the user input to one of the valid options (case insensitive, partial matching allowed)
+- If you cannot extract a valid value, return {"value": null}
 
-Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
+Examples:
+- For name: {"value": "John Smith"}
+- For age: {"value": 35}
+- For income: {"value": 75000}
+- For gender: {"value": "Male"}`;
 
-    const userPrompt = `Extract form field values from this user message: "${input}"`;
+    const userPrompt = `Extract the ${step.field} from this user message: "${input}"`;
 
     try {
       const response = await fetch(GEMINI_API_URL, {
@@ -142,7 +309,7 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
           }],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 1000,
+            maxOutputTokens: 200,
             topP: 0.8,
             topK: 10,
           }
@@ -150,130 +317,63 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
       });
 
       if (!response.ok) {
-        console.error(`API request failed: ${response.status} ${response.statusText}`);
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('Gemini API response:', data);
       const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!generatedText) {
-        console.error('No response text from API:', data);
         throw new Error('No response from API');
       }
 
-      console.log('Generated text:', generatedText);
-
-      // Extract JSON from the response (in case there's extra text)
       const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No valid JSON found in response');
       }
 
-      const extractedData = JSON.parse(jsonMatch[0]);
-      console.log('Extracted data:', extractedData);
-      
-      // Validate the extracted data types
-      const validatedData: Partial<SignupData> = {};
-      
-      for (const [key, value] of Object.entries(extractedData)) {
-        if (key in formData) {
-          // Type validation based on the original formData structure
-          const originalValue = formData[key as keyof SignupData];
-          if (typeof originalValue === 'number' && !isNaN(Number(value))) {
-            (validatedData as any)[key] = Number(value);
-          } else if (typeof originalValue === 'string') {
-            (validatedData as any)[key] = String(value);
-          }
-        }
-      }
-
-      console.log('Validated data:', validatedData);
-      return validatedData;
+      const result = JSON.parse(jsonMatch[0]);
+      return result.value;
     } catch (error) {
       console.error('LLM parsing error:', error);
-      console.log('Falling back to basic parsing for input:', input);
-      // Fallback to basic parsing if LLM fails
-      return parseUserInputBasic(input);
+      // Fallback to step-specific parser
+      if (step.parser) {
+        return step.parser(input);
+      }
+      return null;
     }
   };
 
-  const parseUserInputBasic = (input: string): Partial<SignupData> => {
-    const updates: Partial<SignupData> = {};
-    const lowercaseInput = input.toLowerCase();
-
-    // Name parsing
-    const nameMatch = input.match(/(?:my name is|i'm|i am called|call me)\s+([a-zA-Z\s]+)/i);
-    if (nameMatch) {
-      updates.name = nameMatch[1].trim();
+  const moveToNextStep = () => {
+    if (currentStepIndex < conversationSteps.length - 1) {
+      const nextIndex = currentStepIndex + 1;
+      setCurrentStepIndex(nextIndex);
+      
+      const nextStep = conversationSteps[nextIndex];
+      const botMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'bot',
+        message: nextStep.question,
+        timestamp: new Date()
+      };
+      
+      setChatMessages(prev => [...prev, botMessage]);
+    } else {
+      // All questions completed
+      const completionMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'bot',
+        message: "Perfect! I've gathered all your information. You can review and modify any details in the form on the right, then click 'Create Account' to finish setting up your profile.",
+        timestamp: new Date()
+      };
+      
+      setChatMessages(prev => [...prev, completionMessage]);
     }
-
-    // Age parsing
-    const ageMatch = input.match(/(?:i'm|i am|my age is)\s+(\d+)(?:\s+years?\s+old)?/i) || 
-                     input.match(/(\d+)\s+years?\s+old/i);
-    if (ageMatch) {
-      const age = parseInt(ageMatch[1]);
-      if (age >= 18 && age <= 100) {
-        updates.age = age;
-      }
-    }
-
-    // Income parsing
-    const incomeMatch = input.match(/(?:income|earn|salary|make)(?:\s+is)?\s+(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
-    if (incomeMatch) {
-      let income = incomeMatch[1].replace(/,/g, '');
-      if (income.endsWith('k')) {
-        income = income.slice(0, -1) + '000';
-      }
-      updates.annual_income = parseFloat(income);
-    }
-
-    // Savings parsing
-    const savingsMatch = input.match(/(?:saved|savings|have|current savings are?)\s+(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i) || input.match(/(?:my\s+)?(?:current\s+)?savings?\s+(?:are?|is)\s+(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
-    if (savingsMatch) {
-      let savings = savingsMatch[1].replace(/,/g, '');
-      if (savings.endsWith('k')) {
-        savings = savings.slice(0, -1) + '000';
-      }
-      updates.current_savings = parseFloat(savings);
-    }
-
-    // Gender parsing
-    if (lowercaseInput.includes('male') && !lowercaseInput.includes('female')) {
-      updates.gender = 'Male';
-    } else if (lowercaseInput.includes('female')) {
-      updates.gender = 'Female';
-    }
-
-    // Country parsing
-    if (lowercaseInput.includes('australia')) updates.country = 'Australia';
-    if (lowercaseInput.includes('new zealand')) updates.country = 'New Zealand';
-    if (lowercaseInput.includes('united kingdom') || lowercaseInput.includes('uk')) updates.country = 'United Kingdom';
-    if (lowercaseInput.includes('united states') || lowercaseInput.includes('usa')) updates.country = 'United States';
-
-    // Risk tolerance parsing
-    if (lowercaseInput.includes('low risk') || lowercaseInput.includes('conservative')) {
-      updates.risk_tolerance = 'Low';
-    } else if (lowercaseInput.includes('high risk') || lowercaseInput.includes('aggressive')) {
-      updates.risk_tolerance = 'High';
-    } else if (lowercaseInput.includes('medium risk') || lowercaseInput.includes('moderate')) {
-      updates.risk_tolerance = 'Medium';
-    }
-
-    // Marital status parsing
-    if (lowercaseInput.includes('single')) updates.marital_status = 'Single';
-    if (lowercaseInput.includes('married')) updates.marital_status = 'Married';
-    if (lowercaseInput.includes('divorced')) updates.marital_status = 'Divorced';
-    if (lowercaseInput.includes('widowed')) updates.marital_status = 'Widowed';
-
-    return updates;
   };
 
-  // Handle chat messages with LLM integration
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || currentStepIndex >= conversationSteps.length) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -286,45 +386,52 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
     setChatLoading(true);
 
     try {
-      // Use LLM to parse the user input
-      const updates = await parseUserInputWithLLM(chatInput);
-      const updatedFields = Object.keys(updates);
-
-      if (updatedFields.length > 0) {
-        // Update the form data
-        setFormData(prev => ({ ...prev, ...updates }));
-
-        // Create response message with more details
-        const fieldDescriptions = updatedFields.map(field => {
-          const value = updates[field as keyof SignupData];
-          return `${field.replace(/_/g, ' ')}: ${value}`;
-        }).join(', ');
-
-        const responseMessage: ChatMessage = {
+      const currentStep = conversationSteps[currentStepIndex];
+      
+      // Parse the user input for the current step
+      const extractedValue = await parseUserInputWithLLM(chatInput, currentStep);
+      
+      if (extractedValue !== null && extractedValue !== undefined) {
+        // Validate the extracted value
+        if (currentStep.validation && !currentStep.validation(extractedValue)) {
+          throw new Error('Invalid value');
+        }
+        
+        // Update form data
+        setFormData(prev => ({ ...prev, [currentStep.field]: extractedValue }));
+        
+        // Confirm the update
+        const confirmationMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: 'bot',
-          message: `Great! I've updated ${updatedFields.length} field(s): ${fieldDescriptions}. What else would you like to update?`,
+          message: `Got it! I've set your ${currentStep.field.replace(/_/g, ' ')} as: ${extractedValue}`,
           timestamp: new Date()
         };
         
-        setChatMessages(prev => [...prev, responseMessage]);
+        setChatMessages(prev => [...prev, confirmationMessage]);
+        
+        // Move to next step after a brief delay
+        setTimeout(() => {
+          moveToNextStep();
+        }, 500);
+        
       } else {
-        // No fields recognized
-        const responseMessage: ChatMessage = {
+        // Could not parse the input
+        const errorMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: 'bot',
-          message: "I couldn't identify any form fields to update from your message. Try being more specific, like 'I'm 30 years old' or 'My income is $60,000'.",
+          message: `I couldn't understand your response. ${currentStep.question}${currentStep.options ? ` Please choose from: ${currentStep.options.join(', ')}` : ''}`,
           timestamp: new Date()
         };
         
-        setChatMessages(prev => [...prev, responseMessage]);
+        setChatMessages(prev => [...prev, errorMessage]);
       }
     } catch (error) {
       console.error('Chat processing error:', error);
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        message: "Sorry, I encountered an error processing your message. Please try again or fill out the form manually.",
+        message: "I had trouble understanding that. Could you please try rephrasing your answer?",
         timestamp: new Date()
       };
       setChatMessages(prev => [...prev, errorMessage]);
@@ -353,12 +460,22 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="flex gap-6 w-full max-w-6xl">
-        {/* Chatbot Panel - Now permanently visible on the left */}
+        {/* Chatbot Panel */}
         <div className="w-96 h-fit bg-white rounded-lg shadow-2xl border flex flex-col">
           {/* Chat Header */}
           <div className="bg-blue-600 text-white px-4 py-3 rounded-t-lg flex items-center gap-2">
             <Bot className="w-5 h-5" />
-            <span className="font-medium">Form Assistant</span>
+            <span className="font-medium">
+              Form Assistant ({currentStepIndex + 1}/{conversationSteps.length})
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="bg-gray-200 h-1">
+            <div 
+              className="bg-blue-600 h-1 transition-all duration-300"
+              style={{ width: `${((currentStepIndex + 1) / conversationSteps.length) * 100}%` }}
+            />
           </div>
           
           {/* Chat Messages */}
@@ -399,13 +516,13 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Tell me about yourself..."
+                placeholder={currentStepIndex >= conversationSteps.length ? "All questions completed!" : "Your answer..."}
                 className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={chatLoading}
+                disabled={chatLoading || currentStepIndex >= conversationSteps.length}
               />
               <button
                 type="submit"
-                disabled={chatLoading || !chatInput.trim()}
+                disabled={chatLoading || !chatInput.trim() || currentStepIndex >= conversationSteps.length}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white p-2 rounded-md transition-colors"
               >
                 <Send className="w-4 h-4" />
@@ -414,7 +531,7 @@ Example: {"name": "John Smith", "age": 35, "annual_income": 75000}`;
           </form>
         </div>
 
-        {/* Form Card - Now on the right side */}
+        {/* Form Card */}
         <Card className="flex-1 max-w-2xl">
           <CardHeader>
             <CardTitle className="text-3xl font-bold text-center">Join SuperWise</CardTitle>
