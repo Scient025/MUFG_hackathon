@@ -8,9 +8,9 @@ import { PortfolioPage } from "@/components/dashboard/PortfolioPage";
 import { GoalsPage } from "@/components/dashboard/GoalsPage";
 import { EducationPage } from "@/components/dashboard/EducationPage";
 import { RiskPage } from "@/components/dashboard/RiskPage";
-import { ChatbotPage } from "@/components/dashboard/ChatbotPage";
+import { ChatbotPageWithSpeech } from "@/components/dashboard/ChatbotPageWithSpeech";
 import { FloatingChatButton } from "@/components/dashboard/FloatingChatButton";
-import { SignupForm } from "@/components/auth/SignupForm";
+import { SignupFormWithSpeech } from "@/components/auth/SignupFormWithSpeech";
 import { Button } from "@/components/ui/button";
 import { dataService, UserProfile, User } from "@/services/dataService";
 import { Plus } from "lucide-react";
@@ -191,7 +191,6 @@ export default function Dashboard() {
         return (
           <GoalsPage 
             user={currentUser} 
-            goals={goals} 
             onGoalChange={handleGoalChange}
           />
         );
@@ -205,7 +204,7 @@ export default function Dashboard() {
           />
         );
       case "chatbot":
-        return <ChatbotPage user={currentUser} />;
+        return <ChatbotPageWithSpeech user={currentUser} />;
       default:
         return (
           <div className="space-y-8">
@@ -226,7 +225,7 @@ export default function Dashboard() {
   // Show signup form if no users available or signup requested
   if (showSignup || availableUsers.length === 0) {
     return (
-      <SignupForm 
+      <SignupFormWithSpeech 
         onSignupSuccess={handleSignupSuccess}
         onCancel={() => setShowSignup(false)}
       />

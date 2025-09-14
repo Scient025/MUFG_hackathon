@@ -235,6 +235,7 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
                       value={newGoal.priority}
                       onChange={(e) => setNewGoal({ ...newGoal, priority: e.target.value as any })}
                       className="w-full h-12 px-3 border border-input rounded-md text-lg"
+                      aria-label="Select goal priority"
                     >
                       <option value="High">High</option>
                       <option value="Medium">Medium</option>
@@ -248,6 +249,7 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
                     value={newGoal.type}
                     onChange={(e) => setNewGoal({ ...newGoal, type: e.target.value as any })}
                     className="w-full h-12 px-3 border border-input rounded-md text-lg"
+                    aria-label="Select goal type"
                   >
                     <option value="Short-term">Short-term (1-3 years)</option>
                     <option value="Long-term">Long-term (5+ years)</option>

@@ -902,10 +902,20 @@ Examples:
           </div>
           
           {/* Progress Bar */}
-          <div className="bg-gray-200 h-1">
+          <div 
+            className="bg-gray-200 h-1"
+            style={{ 
+              '--progress-width': `${((currentStepIndex + 1) / conversationSteps.length) * 100}%`
+            } as React.CSSProperties}
+          >
             <div 
               className="bg-blue-600 h-1 transition-all duration-300"
-              style={{ width: `${((currentStepIndex + 1) / conversationSteps.length) * 100}%` }}
+              style={{ width: 'var(--progress-width)' } as React.CSSProperties}
+              role="progressbar"
+              aria-valuenow={currentStepIndex + 1}
+              aria-valuemin={1}
+              aria-valuemax={conversationSteps.length}
+              aria-label={`Progress: ${currentStepIndex + 1} of ${conversationSteps.length} questions completed`}
             />
           </div>
           
@@ -932,8 +942,8 @@ Examples:
                 <div className="bg-gray-100 px-3 py-2 rounded-lg">
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' } as React.CSSProperties}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' } as React.CSSProperties}></div>
                   </div>
                 </div>
               </div>
@@ -955,6 +965,8 @@ Examples:
                 type="submit"
                 disabled={chatLoading || !chatInput.trim() || currentStepIndex >= conversationSteps.length}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white p-2 rounded-md transition-colors"
+                aria-label="Send message"
+                title="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>
