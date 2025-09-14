@@ -10,7 +10,7 @@ import { EducationPage } from "@/components/dashboard/EducationPage";
 import { RiskPage } from "@/components/dashboard/RiskPage";
 import { ChatbotPageWithSpeech } from "@/components/dashboard/ChatbotPageWithSpeech";
 import { FloatingChatButton } from "@/components/dashboard/FloatingChatButton";
-import { SignupFormWithSpeech } from "@/components/auth/SignupFormWithSpeech";
+import { SignupForm } from "@/components/auth/SignupForm";
 import { Button } from "@/components/ui/button";
 import { dataService, UserProfile, User } from "@/services/dataService";
 import { Plus } from "lucide-react";
@@ -225,7 +225,7 @@ export default function Dashboard() {
   // Show signup form if no users available or signup requested
   if (showSignup || availableUsers.length === 0) {
     return (
-      <SignupFormWithSpeech 
+      <SignupForm 
         onSignupSuccess={handleSignupSuccess}
         onCancel={() => setShowSignup(false)}
       />

@@ -85,8 +85,20 @@ class AzureSpeechService:
             # Configure speech recognition
             self.speech_config.speech_recognition_language = language
 
-            # Create audio config from bytes
-            audio_config = speechsdk.audio.AudioConfig(use_default_microphone=False)
+            # Create audio stream from bytes using PushAudioInputStream
+            audio_format = speechsdk.audio.AudioStreamFormat(
+                samples_per_second=16000, bits_per_sample=16, channels=1
+            )
+
+            # Create push audio input stream
+            audio_stream = speechsdk.audio.PushAudioInputStream(audio_format)
+
+            # Write audio data to stream
+            audio_stream.write(audio_data)
+            audio_stream.close()
+
+            # Create audio config from stream
+            audio_config = speechsdk.audio.AudioConfig(stream=audio_stream)
 
             # Create recognizer
             recognizer = speechsdk.SpeechRecognizer(
@@ -174,11 +186,14 @@ class AzureSpeechService:
         self, audio_data: bytes, language: str = "en-AU"
     ) -> Dict[str, Any]:
         """Process audio input and return text"""
+        logger.info(f"Processing audio input: {len(audio_data)} bytes")
         text = self.speech_to_text(audio_data, language)
 
         if text:
+            logger.info(f"Recognized text: {text}")
             return {"success": True, "text": text, "language": language}
         else:
+            logger.warning("No text recognized from audio")
             return {
                 "success": False,
                 "error": "Failed to recognize speech",

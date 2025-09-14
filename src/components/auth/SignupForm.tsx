@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from '@/components/ui/slider';
 import { SignupData, dataService } from "@/services/dataService";
-import { Loader2, CheckCircle, Calculator, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle, Calculator, ArrowLeft, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { Send, Bot, TrendingUp, DollarSign, Target, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { useToast } from "@/hooks/use-toast";
 
 interface SignupFormProps {
   onSignupSuccess: (userId: string) => void;
@@ -285,6 +286,18 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 
+  // Azure Speech Services state
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [voices, setVoices] = useState<any[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState('en-AU-NatashaNeural');
+  const [currentPlayingMessage, setCurrentPlayingMessage] = useState<string | null>(null);
+  const [voiceGuidedMode, setVoiceGuidedMode] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const { toast } = useToast();
+
   // Calculator inputs derived from form data
   const [calculatorInputs, setCalculatorInputs] = useState<CalculatorInputs>({
     currentAge: 30,
@@ -305,6 +318,261 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Load available voices on component mount
+  useEffect(() => {
+    loadVoices();
+  }, []);
+
+  const loadVoices = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/voices');
+      const data = await response.json();
+      if (data.enabled) {
+        setVoices(data.voices);
+      } else {
+        setSpeechEnabled(false);
+        toast({
+          title: "Speech Services Disabled",
+          description: "Azure Speech Services are not configured. Text-only mode enabled.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading voices:', error);
+      setSpeechEnabled(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
+      
+      // Try to use WAV format, fallback to webm if not supported
+      let mimeType = 'audio/wav';
+      if (!MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/webm';
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const audioChunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: mimeType });
+        await processAudioInput(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start(100); // Collect data every 100ms
+      setIsRecording(true);
+      
+      toast({
+        title: "Recording Started",
+        description: "Speak your answer now...",
+      });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast({
+        title: "Recording Failed",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const processAudioInput = async (audioBlob: Blob) => {
+    try {
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const hexString = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      const response = await fetch('http://localhost:8000/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio_data: hexString,
+          language: 'en-AU'
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Process the recognized text with the current step
+        if (voiceGuidedMode && currentStepIndex < conversationSteps.length) {
+          const currentStep = conversationSteps[currentStepIndex];
+          const extractedValue = await parseUserInputWithLLM(result.text, currentStep);
+          
+          if (extractedValue !== null && extractedValue !== undefined) {
+            if (currentStep.validation && !currentStep.validation(extractedValue)) {
+              throw new Error('Invalid value');
+            }
+            
+            setFormData(prev => ({ ...prev, [currentStep.field]: extractedValue }));
+            
+            const confirmationMessage: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              type: 'bot',
+              message: `Got it! I've set your ${currentStep.field.replace(/_/g, ' ')} as: ${extractedValue}`,
+              timestamp: new Date()
+            };
+            
+            setChatMessages(prev => [...prev, confirmationMessage]);
+            
+            if (speechEnabled) {
+              textToSpeech(confirmationMessage.message, confirmationMessage.id);
+            }
+            
+            setTimeout(() => {
+              moveToNextStep();
+            }, 1000);
+          } else {
+            const errorMessage: ChatMessage = {
+              id: (Date.now() + 1).toString(),
+              type: 'bot',
+              message: `I couldn't understand your response. ${currentStep.question}${currentStep.options ? ` Please choose from: ${currentStep.options.join(', ')}` : ''}`,
+              timestamp: new Date()
+            };
+            
+            setChatMessages(prev => [...prev, errorMessage]);
+            
+            if (speechEnabled) {
+              textToSpeech(errorMessage.message, errorMessage.id);
+            }
+          }
+        } else {
+          // Regular chat mode
+          setChatInput(result.text);
+        }
+        
+        toast({
+          title: "Speech Recognized",
+          description: `"${result.text}"`,
+        });
+      } else {
+        toast({
+          title: "Speech Recognition Failed",
+          description: "Could not understand your speech. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process speech input.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopAudioPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+      setCurrentPlayingMessage(null);
+    }
+  };
+
+  const textToSpeech = async (text: string, messageId?: string) => {
+    if (!speechEnabled) return;
+    
+    // Stop any currently playing audio
+    stopAudioPlayback();
+    
+    try {
+      const response = await fetch('http://localhost:8000/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          voice_name: selectedVoice
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const audioData = new Uint8Array(result.audio_data.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        const audioBlob = new Blob([audioData], { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.play();
+          setIsPlaying(true);
+          setCurrentPlayingMessage(messageId || null);
+          
+          audioRef.current.onended = () => {
+            setIsPlaying(false);
+            setCurrentPlayingMessage(null);
+            URL.revokeObjectURL(audioUrl);
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+    }
+  };
+
+  const startVoiceGuidedMode = () => {
+    setVoiceGuidedMode(true);
+    setCurrentStepIndex(0);
+    setChatMessages([
+      {
+        id: '1',
+        type: 'bot',
+        message: "Hi! I'm here to help you set up your superannuation profile with voice assistance. I'll ask you questions one by one, and you can speak your answers. Let's get started!",
+        timestamp: new Date()
+      },
+      {
+        id: '2',
+        type: 'bot',
+        message: conversationSteps[0].question,
+        timestamp: new Date()
+      }
+    ]);
+    
+    // Speak the first question
+    if (speechEnabled) {
+      textToSpeech(conversationSteps[0].question, '2');
+    }
+  };
+
+  const stopVoiceGuidedMode = () => {
+    setVoiceGuidedMode(false);
+    stopAudioPlayback();
+    if (isRecording) {
+      stopRecording();
+    }
   };
 
   const handleCalculatorInputChange = (key: keyof CalculatorInputs, value: number) => {
@@ -428,6 +696,11 @@ Examples:
       };
       
       setChatMessages(prev => [...prev, botMessage]);
+      
+      // Speak the next question in voice guided mode
+      if (voiceGuidedMode && speechEnabled) {
+        textToSpeech(nextStep.question, botMessage.id);
+      }
     } else {
       const completionMessage: ChatMessage = {
         id: Date.now().toString(),
@@ -437,6 +710,11 @@ Examples:
       };
       
       setChatMessages(prev => [...prev, completionMessage]);
+      
+      // Speak the completion message in voice guided mode
+      if (voiceGuidedMode && speechEnabled) {
+        textToSpeech(completionMessage.message, completionMessage.id);
+      }
     }
   };
 
@@ -901,21 +1179,98 @@ Examples:
             </span>
           </div>
           
+          {/* Speech Controls */}
+          {speechEnabled && (
+            <div className="bg-green-600 text-white px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4" />
+                <span className="text-sm font-medium">Speech Controls</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className="text-xs bg-green-700 text-white border-0 rounded px-2 py-1"
+                  aria-label="Select voice for text-to-speech"
+                  disabled={!speechEnabled}
+                >
+                  {Object.entries(voices).map(([lang, voiceList]: [string, any]) => (
+                    <optgroup key={lang} label={lang.toUpperCase()}>
+                      {Array.isArray(voiceList) && voiceList.map((voice: any) => (
+                        <option key={voice.name} value={voice.name}>
+                          {voice.display}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <Button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  variant={isRecording ? "destructive" : "default"}
+                  size="sm"
+                  className="h-6 px-2"
+                  disabled={!speechEnabled}
+                >
+                  {isRecording ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                </Button>
+                {isPlaying && (
+                  <Button
+                    onClick={stopAudioPlayback}
+                    variant="destructive"
+                    size="sm"
+                    className="h-6 px-2"
+                  >
+                    <VolumeX className="w-3 h-3" />
+                  </Button>
+                )}
+                <Button
+                  onClick={() => setSpeechEnabled(!speechEnabled)}
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-white border-white hover:bg-white hover:text-green-600"
+                >
+                  {speechEnabled ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {/* Voice Guided Mode Controls */}
+          <div className="bg-gray-50 px-4 py-2 border-b">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Voice Guided Mode</span>
+              {!voiceGuidedMode ? (
+                <Button
+                  onClick={startVoiceGuidedMode}
+                  size="sm"
+                  className="h-6 px-3 text-xs"
+                  disabled={!speechEnabled}
+                >
+                  Start Voice Guide
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopVoiceGuidedMode}
+                  variant="destructive"
+                  size="sm"
+                  className="h-6 px-3 text-xs"
+                >
+                  Stop Voice Guide
+                </Button>
+              )}
+            </div>
+            {voiceGuidedMode && (
+              <p className="text-xs text-gray-600 mt-1">
+                Questions will be read aloud. Speak your answers after each question.
+              </p>
+            )}
+          </div>
+          
           {/* Progress Bar */}
-          <div 
-            className="bg-gray-200 h-1"
-            style={{ 
-              '--progress-width': `${((currentStepIndex + 1) / conversationSteps.length) * 100}%`
-            } as React.CSSProperties}
-          >
+          <div className="bg-gray-200 h-1">
             <div 
               className="bg-blue-600 h-1 transition-all duration-300"
-              style={{ width: 'var(--progress-width)' } as React.CSSProperties}
-              role="progressbar"
-              aria-valuenow={currentStepIndex + 1}
-              aria-valuemin={1}
-              aria-valuemax={conversationSteps.length}
-              aria-label={`Progress: ${currentStepIndex + 1} of ${conversationSteps.length} questions completed`}
+              style={{ width: `${((currentStepIndex + 1) / conversationSteps.length) * 100}%` } as React.CSSProperties}
             />
           </div>
           
@@ -934,6 +1289,22 @@ Examples:
                   }`}
                 >
                   <p className="text-sm">{message.message}</p>
+                  {message.type === 'bot' && speechEnabled && (
+                    <div className="mt-1 flex justify-end">
+                      <button
+                        onClick={() => textToSpeech(message.message, message.id)}
+                        className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                        title="Read this message"
+                        disabled={isPlaying && currentPlayingMessage === message.id}
+                      >
+                        {isPlaying && currentPlayingMessage === message.id ? (
+                          <VolumeX className="w-3 h-3 text-red-500" />
+                        ) : (
+                          <Volume2 className="w-3 h-3 text-gray-500 hover:text-gray-700" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -965,8 +1336,8 @@ Examples:
                 type="submit"
                 disabled={chatLoading || !chatInput.trim() || currentStepIndex >= conversationSteps.length}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white p-2 rounded-md transition-colors"
-                aria-label="Send message"
                 title="Send message"
+                aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -1184,6 +1555,9 @@ Examples:
           </CardContent>
         </Card>
       </div>
+      
+      {/* Hidden audio element for TTS */}
+      <audio ref={audioRef} />
     </div>
   );
 }

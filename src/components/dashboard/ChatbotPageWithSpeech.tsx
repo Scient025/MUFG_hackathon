@@ -35,6 +35,7 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [voices, setVoices] = useState<any[]>([]);
   const [selectedVoice, setSelectedVoice] = useState('en-AU-NatashaNeural');
+  const [currentPlayingMessage, setCurrentPlayingMessage] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -159,8 +160,20 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
     }
   };
 
-  const textToSpeech = async (text: string) => {
+  const stopAudioPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+      setCurrentPlayingMessage(null);
+    }
+  };
+
+  const textToSpeech = async (text: string, messageId?: string) => {
     if (!speechEnabled) return;
+    
+    // Stop any currently playing audio
+    stopAudioPlayback();
     
     try {
       const response = await fetch('http://localhost:8000/text-to-speech', {
@@ -187,9 +200,11 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
           audioRef.current.src = audioUrl;
           audioRef.current.play();
           setIsPlaying(true);
+          setCurrentPlayingMessage(messageId || null);
           
           audioRef.current.onended = () => {
             setIsPlaying(false);
+            setCurrentPlayingMessage(null);
             URL.revokeObjectURL(audioUrl);
           };
         }
@@ -229,7 +244,7 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
       
       // Convert bot response to speech
       if (speechEnabled) {
-        await textToSpeech(botResponse.content);
+        await textToSpeech(botResponse.content, botResponse.id);
       }
     } catch (error) {
       const botResponse: ChatMessage = {
@@ -255,58 +270,70 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
 
   return (
     <div className="space-y-8">
-      {/* Speech Controls */}
-      {speechEnabled && (
-        <Card className="dashboard-card">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-card-foreground flex items-center gap-3">
-              <Volume2 className="w-6 h-6" />
-              Speech Controls
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Voice:</label>
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="px-3 py-1 border rounded-md"
-                  aria-label="Select voice for text-to-speech"
-                >
-                  {Object.entries(voices).map(([lang, voiceList]: [string, any]) => (
-                    <optgroup key={lang} label={lang.toUpperCase()}>
-                      {Array.isArray(voiceList) && voiceList.map((voice: any) => (
-                        <option key={voice.name} value={voice.name}>
-                          {voice.display}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              
-              <Button
-                onClick={isRecording ? stopRecording : startRecording}
-                variant={isRecording ? "destructive" : "default"}
-                className="flex items-center gap-2"
+      {/* Speech Controls - Always visible when speech is enabled */}
+      <Card className="dashboard-card">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-card-foreground flex items-center gap-3">
+            <Volume2 className="w-6 h-6" />
+            Speech Controls
+            {!speechEnabled && <span className="text-sm font-normal text-muted-foreground">(Disabled)</span>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Voice:</label>
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                className="px-3 py-1 border rounded-md"
+                aria-label="Select voice for text-to-speech"
+                disabled={!speechEnabled}
               >
-                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                {isRecording ? "Stop Recording" : "Start Recording"}
-              </Button>
-              
-              <Button
-                onClick={() => setSpeechEnabled(!speechEnabled)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                {speechEnabled ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                {speechEnabled ? "Disable Speech" : "Enable Speech"}
-              </Button>
+                {Object.entries(voices).map(([lang, voiceList]: [string, any]) => (
+                  <optgroup key={lang} label={lang.toUpperCase()}>
+                    {Array.isArray(voiceList) && voiceList.map((voice: any) => (
+                      <option key={voice.name} value={voice.name}>
+                        {voice.display}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            
+            <Button
+              onClick={isRecording ? stopRecording : startRecording}
+              variant={isRecording ? "destructive" : "default"}
+              className="flex items-center gap-2"
+              disabled={!speechEnabled}
+            >
+              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isRecording ? "Stop Recording" : "Start Recording"}
+            </Button>
+            
+            {isPlaying && (
+              <Button
+                onClick={stopAudioPlayback}
+                variant="destructive"
+                className="flex items-center gap-2"
+              >
+                <VolumeX className="w-4 h-4" />
+                Stop Audio
+              </Button>
+            )}
+            
+            <Button
+              onClick={() => setSpeechEnabled(!speechEnabled)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {speechEnabled ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {speechEnabled ? "Disable Speech" : "Enable Speech"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Chat Interface */}
       <Card className="dashboard-card">
@@ -341,10 +368,24 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
                       >
                         {message.content}
                       </div>
-                      <div className={`text-xs text-muted-foreground mt-1 ${
-                        message.type === 'user' ? 'text-right' : 'text-left'
+                      <div className={`text-xs text-muted-foreground mt-1 flex items-center gap-2 ${
+                        message.type === 'user' ? 'text-right justify-end' : 'text-left justify-start'
                       }`}>
-                        {formatTime(message.timestamp)}
+                        <span>{formatTime(message.timestamp)}</span>
+                        {message.type === 'bot' && speechEnabled && (
+                          <button
+                            onClick={() => textToSpeech(message.content, message.id)}
+                            className="p-1 hover:bg-muted rounded-full transition-colors"
+                            title="Read this message"
+                            disabled={isPlaying && currentPlayingMessage === message.id}
+                          >
+                            {isPlaying && currentPlayingMessage === message.id ? (
+                              <VolumeX className="w-3 h-3 text-red-500" />
+                            ) : (
+                              <Volume2 className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                     

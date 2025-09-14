@@ -1,6 +1,6 @@
 # AI-Powered Superannuation Advisor Dashboard
 
-A comprehensive AI-powered superannuation advisor with ML models, real-time predictions, and conversational AI. Features a clean, card-based, accessible dashboard UI targeted at older users with high-contrast design, large fonts, and simple navigation.
+A comprehensive AI-powered superannuation advisor with ML models, real-time predictions, conversational AI, Azure Speech Services, and automated email system. Features a clean, card-based, accessible dashboard UI targeted at older users with high-contrast design, large fonts, and simple navigation.
 
 ## 🚀 Key Features
 
@@ -35,11 +35,34 @@ A comprehensive AI-powered superannuation advisor with ML models, real-time pred
 - **Comparison Tool**: Compare user allocation with recommended allocation
 - **Risk Assessment**: Comprehensive risk analysis and recommendations
 
-### 🤖 AI Chatbot
+### 🤖 AI Chatbot with Voice
 - **Floating Action Button**: Easy access to AI advisor
+- **Voice Interaction**: Speech-to-text and text-to-speech capabilities
+- **Voice Controls**: Start/stop recording, voice selection, enable/disable
+- **Individual Message Playback**: Speaker icons for manual message reading
 - **Sample Questions**: Pre-built questions for common scenarios
 - **ML Model Integration**: Simulated responses based on user data
 - **Contextual Advice**: Personalized recommendations based on user profile
+
+### 🎤 Azure Speech Services
+- **Text-to-Speech (TTS)**: Converts AI responses to natural speech
+- **Speech-to-Text (STT)**: Voice input for chatbot interactions
+- **Multiple Voice Options**: Australian, US, and UK English voices
+- **Voice-Guided Signup**: Voice-assisted user profile creation
+- **Real-time Audio Processing**: Optimized for 16kHz, 16-bit, mono audio
+
+### 📧 Automated Email System
+- **6-Hour Scheduled Emails**: Automated financial updates every 6 hours
+- **Manual Email Trigger**: "Get Financial Update" button with news source selection
+- **News Source Options**:
+  - 📰 **NewsAPI**: Real-time financial news from NewsAPI.org
+  - 🤖 **Gemini AI**: AI-generated financial content with recent web data
+- **Professional HTML Templates**: Beautiful, responsive design with MUFG branding
+- **Comprehensive Content Categories**:
+  - 📈 Stock Market & Economic Updates
+  - 🏠 Real Estate & Bonds
+  - 📋 Policy Changes & Tax Updates
+  - 📰 General Financial News
 
 
 ## 📁 Project Structure
@@ -152,9 +175,26 @@ chmod +x setup.sh
    ```
 
 4. **Set up Environment Variables**
-   Create a `.env` file in the backend folder with your Hugging Face token:
-   ```
+   Create a `.env` file in the backend folder with your API keys:
+   ```env
+   # Hugging Face Token (for ML models)
    HF_TOKEN=your_huggingface_token_here
+   
+   # Azure Speech Services (for voice features)
+   AZURE_SPEECH_KEY=your_azure_speech_key_here
+   AZURE_SPEECH_REGION=your_azure_region_here
+   
+   # Email Service (for automated emails)
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your_email@gmail.com
+   SMTP_PASSWORD=your_app_password
+   ADMIN_EMAIL=your_email@gmail.com
+   
+   # News APIs (optional - for email content)
+   NEWS_API_KEY=your_news_api_key_here
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
 5. **Start the ML Backend**
@@ -171,6 +211,7 @@ chmod +x setup.sh
 7. **Access the Application**
    - Frontend: http://localhost:8080
    - Backend API: http://localhost:8000
+   - Health Check: http://localhost:8000/health
 
 ### Testing Different Users
 Use the user selection dropdown to switch between different user profiles (U1000-U1009)
@@ -188,6 +229,8 @@ Use the user selection dropdown to switch between different user profiles (U1000
 - **Natural Language Processing**: Understands queries about risk, contributions, projections, and peer comparisons
 
 ### API Endpoints
+
+#### Core ML & Data Endpoints
 - `/user/{user_id}` - Get user profile
 - `/predict/{user_id}` - Pension projection + risk category
 - `/summary/{user_id}` - Dashboard summary statistics
@@ -196,6 +239,19 @@ Use the user selection dropdown to switch between different user profiles (U1000
 - `/risk/{user_id}` - Risk tolerance prediction
 - `/segment/{user_id}` - User segmentation
 - `/recommendations/{user_id}` - Investment recommendations
+
+#### Azure Speech Services Endpoints
+- `POST /text-to-speech` - Convert text to speech
+- `POST /speech-to-text` - Convert speech to text
+- `GET /voices` - Get available voices
+
+#### Email System Endpoints
+- `GET /trigger-email` - Trigger email with default source
+- `GET /trigger-email/{news_source}` - Trigger email with specific source (gemini/newsapi)
+- `POST /send-email` - Send email with custom parameters
+
+#### System Endpoints
+- `GET /health` - Check system status including email scheduler
 
 ## 📊 Dataset Integration
 
@@ -206,13 +262,34 @@ The application uses real data from `case1.csv` with 500+ users including:
 - Pension Eligibility and Tax Benefits
 - Transaction History and Portfolio Diversity
 
+## 🎯 How to Use New Features
+
+### Voice-Enabled Chatbot
+1. Go to the "Chatbot" tab in the dashboard
+2. Click "Start Recording" to speak your question
+3. AI will respond with both text and voice
+4. Use speaker icons next to messages for manual playback
+5. Select different voices from the dropdown
+
+### Voice-Guided Signup
+1. When creating a new user profile, use the enhanced signup form
+2. Enable "Voice Guided Mode" for step-by-step voice assistance
+3. Speak your answers to questions
+4. The form will be filled automatically based on your speech input
+
+### Automated Email System
+1. Emails are sent automatically every 6 hours
+2. Use the "Get Financial Update" button in the dashboard header
+3. Select news source (NewsAPI or Gemini AI) before sending
+4. Check your email for comprehensive financial updates
+
 ## 🔮 Future Enhancements
 
 - **Real Excel Integration**: Connect to actual dataset
 - **Real-time Data**: Live market data integration
 - **Advanced Analytics**: More sophisticated financial modeling
 - **Mobile App**: Native mobile application
-- **Voice Interface**: Voice-activated AI assistant
+- **Enhanced Voice Commands**: More natural voice interactions
 
 ## 📄 License
 
