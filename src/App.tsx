@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ProfileSetup from "./pages/ProfileSetup";
+import RetirementCalculator from "./pages/RetirementCalculator";
 import Admin from "./pages/Admin";
 import UserManager from "./pages/UserManager";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/profile-setup" element={<ProfileSetup />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/retirement-calculator/:userId" element={<RetirementCalculator />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/user-manager" element={<UserManager />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

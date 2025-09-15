@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
@@ -22,16 +22,56 @@ export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { adminUser, isAdminMode, logout: adminLogout } = useAdminAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("chatbot");
   const [goals, setGoals] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [summaryStats, setSummaryStats] = useState<any>(null);
   const [peerComparison, setPeerComparison] = useState<any>(null);
   const [projection, setProjection] = useState<any>(null);
+  const [customUserId, setCustomUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(true);
+
+  // Handle custom login (from our custom login system)
+  useEffect(() => {
+    // Check for userId from navigation state or localStorage
+    const userIdFromState = location.state?.userId;
+    const currentUserFromStorage = localStorage.getItem('currentUser');
+    
+    console.log('Checking for custom userId:', { userIdFromState, currentUserFromStorage });
+    
+    if (userIdFromState) {
+      console.log('Got userId from navigation state:', userIdFromState);
+      setCustomUserId(userIdFromState);
+    } else if (currentUserFromStorage) {
+      try {
+        const userData = JSON.parse(currentUserFromStorage);
+        console.log('Got userId from localStorage:', userData.userId);
+        setCustomUserId(userData.userId);
+      } catch (error) {
+        console.error('Error parsing currentUser from localStorage:', error);
+      }
+    } else {
+      console.log('No custom userId found');
+    }
+    
+    // Mark initialization as complete
+    setInitializing(false);
+  }, [location.state]);
 
   const loadUserData = async () => {
+    // Use custom userId if available, otherwise fall back to admin mode
+    const userIdToUse = customUserId || (isAdminMode ? adminUser?.id : null);
+    
+    if (!userIdToUse) {
+      console.log('No userId available for loading data');
+      return;
+    }
+
+    console.log('Loading user data for userId:', userIdToUse);
+    
     // In admin mode, use the admin user directly
     if (isAdminMode && adminUser) {
       setCurrentUser(adminUser);
@@ -56,6 +96,50 @@ export default function Dashboard() {
       return;
     }
     
+    // For custom login, use the custom userId
+    if (customUserId) {
+      try {
+        setError(null);
+        setLoading(true);
+        
+        console.log('Loading user profile for custom userId:', customUserId);
+        
+        // Load user profile from Supabase using the custom userId
+        const userProfile = await SupabaseService.getUserProfile(customUserId);
+        
+        if (userProfile) {
+          setCurrentUser(userProfile);
+          setSummaryStats({
+            current_savings: userProfile.Current_Savings,
+            projected_pension: userProfile.Current_Savings * 5, // Mock calculation
+            percent_to_goal: 20,
+            monthly_income_at_retirement: userProfile.Current_Savings * 0.04 / 12
+          });
+          setPeerComparison({
+            total_peers: 100,
+            avg_age: 35,
+            avg_income: 75000,
+            avg_savings: 25000,
+            avg_contribution: 1200
+          });
+          setProjection({
+            current_projection: userProfile.Current_Savings * 5,
+            optimistic_projection: userProfile.Current_Savings * 7,
+            pessimistic_projection: userProfile.Current_Savings * 3
+          });
+        } else {
+          setError('User profile not found');
+        }
+      } catch (error) {
+        console.error('Error loading custom user data:', error);
+        setError('Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
+    // Fallback to Supabase auth user (if any)
     if (!user) return;
     
     try {
@@ -99,6 +183,11 @@ export default function Dashboard() {
     if (isAdminMode) {
       adminLogout();
       navigate('/user-manager');
+    } else if (customUserId) {
+      // Handle custom login sign out
+      localStorage.removeItem('currentUser');
+      setCustomUserId(null);
+      navigate('/login');
     } else {
       await signOut();
       navigate('/login');
@@ -107,17 +196,21 @@ export default function Dashboard() {
 
   // Redirect to login if not authenticated (unless in admin mode)
   useEffect(() => {
-    if (!authLoading && !user && !isAdminMode) {
+    console.log('Auth check:', { authLoading, user: !!user, isAdminMode, customUserId, initializing });
+    
+    // Only redirect if we're sure there's no authentication method available and initialization is complete
+    if (!authLoading && !user && !isAdminMode && !customUserId && !initializing) {
+      console.log('No authentication found, redirecting to login');
       navigate('/login');
     }
-  }, [user, authLoading, isAdminMode, navigate]);
+  }, [user, authLoading, isAdminMode, customUserId, initializing, navigate]);
 
   // Load user data when user is authenticated or in admin mode
   useEffect(() => {
-    if (user || isAdminMode) {
+    if (user || isAdminMode || customUserId) {
       loadUserData();
     }
-  }, [user, isAdminMode]);
+  }, [user, isAdminMode, customUserId]);
 
   const handleRiskChange = (riskTolerance: string) => {
     console.log('Risk tolerance changed to:', riskTolerance);
@@ -127,7 +220,7 @@ export default function Dashboard() {
     setGoals(newGoals);
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || initializing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -196,6 +289,15 @@ export default function Dashboard() {
     current: currentSavings,
     target: projection?.adjusted_projection || projectedPension,
     percentage: Math.min(100, (currentSavings / (projection?.adjusted_projection || projectedPension)) * 100)
+  };
+
+  // Handle calculator tab - navigate to retirement calculator page
+  const handleTabChange = (tab: string) => {
+    if (tab === "calculator") {
+      navigate(`/retirement-calculator/${currentUser?.id}`);
+      return;
+    }
+    setActiveTab(tab);
   };
 
   // Render the appropriate page based on active tab
@@ -315,7 +417,7 @@ export default function Dashboard() {
         {/* Navigation Tabs */}
         <NavigationTabs 
           activeTab={activeTab} 
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
         />
 
         {/* Main Content */}

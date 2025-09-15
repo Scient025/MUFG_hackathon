@@ -181,20 +181,140 @@ export const dataService = {
   // Signup interfaces
   signupUser: async (signupData: SignupData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupData)
-      });
+      // Generate a unique ID for the user
+      const userId = `U${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
       
-      if (!response.ok) {
-        throw new Error(`Signup failed: ${response.statusText}`);
+      console.log('Attempting to save user with ID:', userId);
+      console.log('Signup data:', signupData);
+      
+      // Try to save to Supabase first (primary storage)
+      let supabaseResult = null;
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        
+        // Create insert object with all fields - set missing ones to null
+        const insertData = {
+          // Fields from signup form
+          "User_ID": userId,
+          "Name": signupData.name,
+          "Age": signupData.age,
+          "Gender": signupData.gender,
+          "Country": signupData.country,
+          "Employment_Status": signupData.employment_status,
+          "Annual_Income": signupData.annual_income,
+          "Current_Savings": signupData.current_savings,
+          "Retirement_Age_Goal": signupData.retirement_age_goal,
+          "Risk_Tolerance": signupData.risk_tolerance,
+          "Contribution_Amount": signupData.contribution_amount,
+          "Contribution_Frequency": signupData.contribution_frequency,
+          "Employer_Contribution": signupData.employer_contribution,
+          "Years_Contributed": signupData.years_contributed || 0,
+          "Investment_Type": signupData.investment_type,
+          "Fund_Name": signupData.fund_name,
+          "Marital_Status": signupData.marital_status,
+          "Number_of_Dependents": signupData.number_of_dependents,
+          "Education_Level": signupData.education_level,
+          "Health_Status": signupData.health_status,
+          "Home_Ownership_Status": signupData.home_ownership_status,
+          "Investment_Experience_Level": signupData.investment_experience_level,
+          "Financial_Goals": signupData.financial_goals,
+          "Insurance_Coverage": signupData.insurance_coverage,
+          "Pension_Type": signupData.pension_type,
+          "Withdrawal_Strategy": signupData.withdrawal_strategy,
+          "Password": signupData.password,
+          
+          // Fields not collected in signup - set to null
+          "Total_Annual_Contribution": null,
+          "Annual_Return_Rate": null,
+          "Volatility": null,
+          "Fees_Percentage": null,
+          "Projected_Pension_Amount": null,
+          "Expected_Annual_Payout": null,
+          "Inflation_Adjusted_Payout": null,
+          "Years_of_Payout": null,
+          "Survivor_Benefits": null,
+          "Transaction_ID": null,
+          "Transaction_Amount": null,
+          "Transaction_Date": null,
+          "Suspicious_Flag": null,
+          "Anomaly_Score": null,
+          "Life_Expectancy_Estimate": null,
+          "Debt_Level": null,
+          "Monthly_Expenses": null,
+          "Savings_Rate": null,
+          "Portfolio_Diversity_Score": null,
+          "Tax_Benefits_Eligibility": null,
+          "Government_Pension_Eligibility": null,
+          "Private_Pension_Eligibility": null,
+          "Transaction_Channel": null,
+          "IP_Address": null,
+          "Device_ID": null,
+          "Geo_Location": null,
+          "Time_of_Transaction": null,
+          "Transaction_Pattern_Score": null,
+          "Previous_Fraud_Flag": null,
+          "Account_Age": null,
+          "Risk_Tolerance_encoded": null,
+          "Investment_Type_encoded": null,
+          "Investment_Experience_Level_encoded": null
+        };
+
+        console.log('Inserting data to Supabase:', insertData);
+
+        const { data, error } = await supabase
+          .from('MUFG')
+          .insert(insertData)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('❌ Supabase signup failed:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          throw new Error(`Supabase error: ${error.message}`);
+        } else {
+          supabaseResult = data;
+          console.log('✅ Supabase signup successful:', data);
+        }
+      } catch (supabaseError) {
+        console.error('Supabase signup failed:', supabaseError);
+        throw new Error(`Failed to save to Supabase: ${supabaseError.message}`);
       }
       
-      const data = await response.json();
-      return data;
+      // Also try to save to backend API as backup
+      try {
+        const response = await fetch(`${API_BASE_URL}/signup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...signupData,
+            user_id: userId
+          })
+        });
+        
+        if (response.ok) {
+          const backendResult = await response.json();
+          console.log('✅ Backend signup successful:', backendResult);
+        } else {
+          console.warn('⚠️ Backend signup failed with status:', response.status);
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend signup failed:', backendError);
+      }
+      
+      // Return success with Supabase data
+      return {
+        success: true,
+        userId: userId,
+        user: supabaseResult,
+        message: 'User created successfully in Supabase'
+      };
     } catch (error) {
       console.error('Error signing up user:', error);
       throw error;
@@ -212,6 +332,74 @@ export const dataService = {
     } catch (error) {
       console.error('Error fetching users:', error);
       return [];
+    }
+  },
+
+  // Login user with User ID and password
+  loginUser: async (credentials: LoginCredentials): Promise<LoginResult> => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+
+      console.log('Attempting login for Name:', credentials.name);
+      console.log('Password provided:', credentials.password);
+
+      // Find the user by Name
+      const { data: userData, error: userError } = await supabase
+        .from('MUFG')
+        .select('User_ID, Name, Password')
+        .eq('Name', credentials.name);
+
+      console.log('User lookup result:', { userData, userError });
+
+      if (userError || !userData || userData.length === 0) {
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+
+      // Check if password matches
+      const user = userData[0];
+      if (user.Password !== credentials.password) {
+        return {
+          success: false,
+          message: 'Invalid password'
+        };
+      }
+
+      console.log('Login successful for user:', user.User_ID, 'Name:', user.Name);
+      return {
+        success: true,
+        userId: user.User_ID,
+        name: user.Name,
+        message: 'Login successful'
+      };
+    } catch (error) {
+      console.error('Login error:', error);
+      return {
+        success: false,
+        message: 'An unexpected error occurred'
+      };
+    }
+  },
+
+  // Debug function to check if user exists
+  debugUserExists: async (userId: string): Promise<any> => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      
+      console.log('Debug: Checking if user exists with ID:', userId);
+      
+      const { data, error } = await supabase
+        .from('MUFG')
+        .select('User_ID, Name, Password')
+        .eq('User_ID', userId);
+      
+      console.log('Debug query result:', { data, error });
+      return { data, error };
+    } catch (error) {
+      console.error('Debug error:', error);
+      return { data: null, error };
     }
   }
 };
@@ -243,6 +431,20 @@ export interface SignupData {
   insurance_coverage: string;
   pension_type: string;
   withdrawal_strategy: string;
+  password: string;
+}
+
+// Login interface
+export interface LoginCredentials {
+  name: string;
+  password: string;
+}
+
+export interface LoginResult {
+  success: boolean;
+  userId?: string;
+  name?: string;
+  message?: string;
 }
 
 // User list interface

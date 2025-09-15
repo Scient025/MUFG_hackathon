@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { dataService } from "@/services/dataService";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,18 +22,32 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      console.log('Attempting login with name:', name, 'password:', password);
+      
+      const result = await dataService.loginUser({
+        name,
+        password
       });
 
-      if (error) {
-        setError(error.message);
+      console.log('Login result:', result);
+
+      if (result.success && result.userId) {
+        // Store user info in localStorage for the session
+        localStorage.setItem('currentUser', JSON.stringify({
+          userId: result.userId,
+          name: result.name
+        }));
+        
+        console.log('Redirecting to dashboard with userId:', result.userId);
+        
+        // Redirect to dashboard with userId
+        navigate("/dashboard", { state: { userId: result.userId } });
       } else {
-        // Redirect to dashboard
-        navigate("/dashboard");
+        console.log('Login failed:', result.message);
+        setError(result.message || "Login failed");
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -58,13 +72,13 @@ export default function Login() {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="name">Name</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
                 required
                 className="h-12"
               />

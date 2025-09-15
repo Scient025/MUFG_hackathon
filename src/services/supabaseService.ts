@@ -9,26 +9,29 @@ export class SupabaseService {
 
   // Get user profile by ID
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
+    console.log('SupabaseService: Fetching user profile for userId:', userId);
+    
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('MUFG')
       .select('*')
-      .eq('id', userId)
+      .eq('User_ID', userId)
       .single();
 
     if (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('SupabaseService: Error fetching user profile:', error);
       return null;
     }
 
+    console.log('SupabaseService: User profile found:', data);
     return data;
   }
 
   // Get all user profiles (for admin)
   static async getAllUserProfiles(): Promise<UserProfile[]> {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('MUFG')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('User_ID', { ascending: false });
 
     if (error) {
       console.error('Error fetching user profiles:', error);
@@ -41,12 +44,9 @@ export class SupabaseService {
   // Update user profile
   static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
     const { error } = await supabase
-      .from('user_profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+      .from('MUFG')
+      .update(updates)
+      .eq('User_ID', userId);
 
     if (error) {
       console.error('Error updating user profile:', error);

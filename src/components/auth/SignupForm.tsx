@@ -234,6 +234,13 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       field: 'investment_experience_level',
       type: 'select',
       options: ['Beginner', 'Intermediate', 'Expert']
+    },
+    {
+      id: 'password',
+      question: "Finally, create a password for your account (at least 6 characters):",
+      field: 'password',
+      type: 'text',
+      validation: (value: string) => value.length >= 6
     }
   ];
 
@@ -262,7 +269,8 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     financial_goals: "Retirement",
     insurance_coverage: "Basic",
     pension_type: "Superannuation",
-    withdrawal_strategy: "Fixed"
+    withdrawal_strategy: "Fixed",
+    password: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -296,6 +304,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
   const [voiceGuidedMode, setVoiceGuidedMode] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Calculator inputs derived from form data
@@ -320,10 +329,25 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     }));
   };
 
+  // Function to scroll chat to bottom
+  const scrollChatToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
+
   // Load available voices on component mount
   useEffect(() => {
     loadVoices();
   }, []);
+
+  // Auto-scroll chat to bottom when new messages are added
+  useEffect(() => {
+    // Small delay to ensure DOM has updated
+    setTimeout(() => {
+      scrollChatToBottom();
+    }, 100);
+  }, [chatMessages]);
 
   const loadVoices = async () => {
     try {
@@ -598,11 +622,14 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
 
     try {
       const result = await dataService.signupUser(formData);
+      
+      // Store user data in localStorage for the retirement calculator to access
+      localStorage.setItem(`user_${result.userId}`, JSON.stringify(formData));
+      
       setSuccess(true);
-      updateCalculatorFromForm();
       setTimeout(() => {
-        setShowCalculator(true);
-        setSuccess(false);
+        // Call onSignupSuccess with the userId to navigate to dashboard
+        onSignupSuccess(result.userId);
       }, 2000);
     } catch (error) {
       console.error("Signup failed:", error);
@@ -635,6 +662,8 @@ Examples:
     const userPrompt = `Extract the ${step.field} from this user message: "${input}"`;
 
     try {
+      console.log('Calling Gemini API for field:', step.field, 'with input:', input);
+      
       const response = await fetch(GEMINI_API_URL, {
         method: 'POST',
         headers: {
@@ -656,27 +685,36 @@ Examples:
       });
 
       if (!response.ok) {
+        console.error('Gemini API request failed:', response.status, response.statusText);
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Gemini API response:', data);
+      
       const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!generatedText) {
+        console.error('No generated text from Gemini API');
         throw new Error('No response from API');
       }
 
       const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error('No JSON found in Gemini response:', generatedText);
         throw new Error('No valid JSON found in response');
       }
 
       const result = JSON.parse(jsonMatch[0]);
+      console.log('Parsed result from Gemini:', result);
       return result.value;
     } catch (error) {
-      console.error('LLM parsing error:', error);
+      console.error('LLM parsing error for field', step.field, ':', error);
+      console.log('Falling back to parser function');
       if (step.parser) {
-        return step.parser(input);
+        const fallbackResult = step.parser(input);
+        console.log('Fallback parser result:', fallbackResult);
+        return fallbackResult;
       }
       return null;
     }
@@ -1275,7 +1313,7 @@ Examples:
           </div>
           
           {/* Chat Messages */}
-          <div className="h-96 overflow-y-auto p-4 space-y-3">
+          <div ref={chatContainerRef} className="h-96 overflow-y-auto p-4 space-y-3">
             {chatMessages.map((message) => (
               <div
                 key={message.id}
@@ -1524,6 +1562,21 @@ Examples:
                     required
                   />
                 </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <Label htmlFor="password" className="text-lg font-medium">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  className="text-lg h-12"
+                  placeholder="Create a secure password (min 6 characters)"
+                  required
+                  minLength={6}
+                />
               </div>
 
               {/* Action Buttons */}
