@@ -197,7 +197,7 @@ class SuperannuationChatRouter:
             # Configure generation parameters for response length control
             generation_config = genai.types.GenerationConfig(
                 max_output_tokens=max_tokens,  # Control response length
-                temperature=0.7,               # Creativity level
+                temperature=0.5,               # Creativity level
                 top_p=0.8,                     # Nucleus sampling
                 top_k=40                       # Top-k sampling
             )
