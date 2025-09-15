@@ -16,7 +16,7 @@ interface ChatMessage {
 }
 
 interface ChatbotPageProps {
-  user: any;
+  user: any; // UserProfile from Supabase
 }
 
 export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
@@ -231,7 +231,7 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
 
     try {
       // Call the real AI API
-      const response = await dataService.sendChatMessage(user.User_ID, currentInput);
+      const response = await dataService.sendChatMessage(user.id, currentInput);
       
       const botResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),

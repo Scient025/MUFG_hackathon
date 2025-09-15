@@ -1,7 +1,7 @@
 // Data service for superannuation advisor dashboard
 // Connects to ML backend API
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = '/api';
 
 export interface UserProfile {
   User_ID: string;

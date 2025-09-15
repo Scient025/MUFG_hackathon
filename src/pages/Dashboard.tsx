@@ -1,23 +1,28 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { MetricsGrid } from "@/components/dashboard/MetricsGrid";
 import { NavigationTabs } from "@/components/dashboard/NavigationTabs";
-import { UserSelection } from "@/components/dashboard/UserSelection";
 import { PortfolioPage } from "@/components/dashboard/PortfolioPage";
 import { GoalsPage } from "@/components/dashboard/GoalsPage";
 import { EducationPage } from "@/components/dashboard/EducationPage";
 import { RiskPage } from "@/components/dashboard/RiskPage";
 import { ChatbotPageWithSpeech } from "@/components/dashboard/ChatbotPageWithSpeech";
 import { FloatingChatButton } from "@/components/dashboard/FloatingChatButton";
-import { SignupForm } from "@/components/auth/SignupForm";
 import { Button } from "@/components/ui/button";
-import { dataService, UserProfile, User } from "@/services/dataService";
-import { Plus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { SupabaseService } from "@/services/supabaseService";
+import { UserProfile } from "@/lib/supabase";
+import { LogOut, User, ArrowLeft } from "lucide-react";
+import { AdminDebug } from "@/components/debug/AdminDebug";
 
 export default function Dashboard() {
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { adminUser, isAdminMode, logout: adminLogout } = useAdminAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("chatbot");
   const [goals, setGoals] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [summaryStats, setSummaryStats] = useState<any>(null);
@@ -25,42 +30,63 @@ export default function Dashboard() {
   const [projection, setProjection] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSignup, setShowSignup] = useState(false);
-  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-
-  const loadAvailableUsers = async () => {
-    try {
-      const users = await dataService.getAllUsers();
-      setAvailableUsers(users);
-      if (users.length > 0 && !selectedUserId) {
-        setSelectedUserId(users[0].User_ID);
-      }
-    } catch (error) {
-      console.error('Error loading users:', error);
-    }
-  };
 
   const loadUserData = async () => {
-    if (!selectedUserId) return;
+    // In admin mode, use the admin user directly
+    if (isAdminMode && adminUser) {
+      setCurrentUser(adminUser);
+      setSummaryStats({
+        current_savings: adminUser.current_savings,
+        projected_pension: adminUser.current_savings * 5, // Mock calculation
+        percent_to_goal: 20,
+        monthly_income_at_retirement: adminUser.current_savings * 0.04 / 12
+      });
+      setPeerComparison({
+        total_peers: 100,
+        avg_age: 35,
+        avg_income: 75000,
+        avg_savings: 25000,
+        avg_contribution: 1200
+      });
+      setProjection({
+        current_projection: adminUser.current_savings * 5,
+        optimistic_projection: adminUser.current_savings * 7,
+        pessimistic_projection: adminUser.current_savings * 3
+      });
+      return;
+    }
+    
+    if (!user) return;
     
     try {
       setError(null);
       setLoading(true);
-      console.log('Loading data for user:', selectedUserId);
       
-      const [user, summary, peer, proj] = await Promise.all([
-        dataService.getUserById(selectedUserId),
-        dataService.getSummaryStats(selectedUserId),
-        dataService.getPeerComparison(selectedUserId),
-        dataService.getPensionProjection(selectedUserId)
-      ]);
-
-      console.log('Data loaded successfully:', { user, summary, peer, proj });
-
-      setCurrentUser(user);
-      setSummaryStats(summary || { current_savings: 0, projected_pension: 0, percent_to_goal: 0, monthly_income_at_retirement: 0 });
-      setPeerComparison(peer || { total_peers: 0, avg_age: 0, avg_income: 0, avg_savings: 0, avg_contribution: 0 });
-      setProjection(proj || { current_projection: 0, adjusted_projection: 0, years_to_retirement: 0, monthly_income_at_retirement: 0 });
+      const userProfile = await SupabaseService.getUserProfile(user.id);
+      
+      if (userProfile) {
+        setCurrentUser(userProfile);
+        // Generate mock data for now - you can replace with real calculations
+        setSummaryStats({
+          current_savings: userProfile.current_savings,
+          projected_pension: userProfile.current_savings * 5, // Mock calculation
+          percent_to_goal: 20,
+          monthly_income_at_retirement: userProfile.current_savings * 0.04 / 12
+        });
+        setPeerComparison({
+          total_peers: 100,
+          avg_age: 35,
+          avg_income: 75000,
+          avg_savings: 25000,
+          avg_contribution: 1200
+        });
+        setProjection({
+          current_projection: userProfile.current_savings * 5,
+          adjusted_projection: userProfile.current_savings * 6,
+          years_to_retirement: userProfile.retirement_age_goal - userProfile.age,
+          monthly_income_at_retirement: userProfile.current_savings * 0.04 / 12
+        });
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
       setError(error instanceof Error ? error.message : 'Unknown error occurred');
@@ -69,27 +95,29 @@ export default function Dashboard() {
     }
   };
 
-  const handleSignupSuccess = (userId: string) => {
-    setSelectedUserId(userId);
-    setShowSignup(false);
-    loadAvailableUsers(); // Refresh user list
+  const handleSignOut = async () => {
+    if (isAdminMode) {
+      adminLogout();
+      navigate('/user-manager');
+    } else {
+      await signOut();
+      navigate('/login');
+    }
   };
 
-  // Load available users on component mount
+  // Redirect to login if not authenticated (unless in admin mode)
   useEffect(() => {
-    loadAvailableUsers();
-  }, []);
+    if (!authLoading && !user && !isAdminMode) {
+      navigate('/login');
+    }
+  }, [user, authLoading, isAdminMode, navigate]);
 
-  // Load user data when selectedUserId changes
+  // Load user data when user is authenticated or in admin mode
   useEffect(() => {
-    if (selectedUserId) {
+    if (user || isAdminMode) {
       loadUserData();
     }
-  }, [selectedUserId]);
-
-  const handleUserChange = (userId: string) => {
-    setSelectedUserId(userId);
-  };
+  }, [user, isAdminMode]);
 
   const handleRiskChange = (riskTolerance: string) => {
     console.log('Risk tolerance changed to:', riskTolerance);
@@ -99,7 +127,7 @@ export default function Dashboard() {
     setGoals(newGoals);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -116,15 +144,20 @@ export default function Dashboard() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-card-foreground mb-4">Unable to load user data</h2>
-          <p className="text-muted-foreground mb-4">Please make sure the ML backend is running</p>
+          <p className="text-muted-foreground mb-4">Please complete your profile setup</p>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
               <p className="text-sm">Error: {error}</p>
             </div>
           )}
-          <Button onClick={loadUserData} className="btn-action">
-            Try Again
-          </Button>
+          <div className="space-x-4">
+            <Button onClick={loadUserData} className="btn-action">
+              Try Again
+            </Button>
+            <Button onClick={handleSignOut} variant="outline">
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -140,25 +173,29 @@ export default function Dashboard() {
   ];
 
   // Generate growth projection data
+  const currentSavings = currentUser.Current_Savings || currentUser.current_savings || 0;
+  const totalContribution = currentUser.Total_Annual_Contribution || currentUser.total_annual_contribution || 0;
+  
   const growthData = [
-    { year: 2024, balance: currentUser.Current_Savings, contributions: currentUser.Total_Annual_Contribution, milestone: "Current Position" },
-    { year: 2025, balance: Math.round(currentUser.Current_Savings * 1.08), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2026, balance: Math.round(currentUser.Current_Savings * 1.16), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2027, balance: Math.round(currentUser.Current_Savings * 1.25), contributions: currentUser.Total_Annual_Contribution, milestone: "Major Market Growth" },
-    { year: 2028, balance: Math.round(currentUser.Current_Savings * 1.35), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2029, balance: Math.round(currentUser.Current_Savings * 1.46), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2030, balance: Math.round(currentUser.Current_Savings * 1.58), contributions: currentUser.Total_Annual_Contribution, milestone: "Halfway Point" },
-    { year: 2035, balance: Math.round(currentUser.Current_Savings * 2.16), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2040, balance: Math.round(currentUser.Current_Savings * 2.95), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2045, balance: Math.round(currentUser.Current_Savings * 4.04), contributions: currentUser.Total_Annual_Contribution },
-    { year: 2050, balance: Math.round(currentUser.Current_Savings * 5.52), contributions: currentUser.Total_Annual_Contribution, milestone: "Retirement Goal" }
+    { year: 2024, balance: currentSavings, contributions: totalContribution, milestone: "Current Position" },
+    { year: 2025, balance: Math.round(currentSavings * 1.08), contributions: totalContribution },
+    { year: 2026, balance: Math.round(currentSavings * 1.16), contributions: totalContribution },
+    { year: 2027, balance: Math.round(currentSavings * 1.25), contributions: totalContribution, milestone: "Major Market Growth" },
+    { year: 2028, balance: Math.round(currentSavings * 1.35), contributions: totalContribution },
+    { year: 2029, balance: Math.round(currentSavings * 1.46), contributions: totalContribution },
+    { year: 2030, balance: Math.round(currentSavings * 1.58), contributions: totalContribution, milestone: "Halfway Point" },
+    { year: 2035, balance: Math.round(currentSavings * 2.16), contributions: totalContribution },
+    { year: 2040, balance: Math.round(currentSavings * 2.95), contributions: totalContribution },
+    { year: 2045, balance: Math.round(currentSavings * 4.04), contributions: totalContribution },
+    { year: 2050, balance: Math.round(currentSavings * 5.52), contributions: totalContribution, milestone: "Retirement Goal" }
   ];
 
   // Calculate goal progress
+  const projectedPension = currentUser.Projected_Pension_Amount || currentUser.projected_pension_amount || currentSavings * 5;
   const goalProgress = {
-    current: currentUser.Current_Savings,
-    target: projection?.adjusted_projection || currentUser.Projected_Pension_Amount,
-    percentage: Math.min(100, (currentUser.Current_Savings / (projection?.adjusted_projection || currentUser.Projected_Pension_Amount)) * 100)
+    current: currentSavings,
+    target: projection?.adjusted_projection || projectedPension,
+    percentage: Math.min(100, (currentSavings / (projection?.adjusted_projection || projectedPension)) * 100)
   };
 
   // Render the appropriate page based on active tab
@@ -222,36 +259,51 @@ export default function Dashboard() {
     }
   };
 
-  // Show signup form if no users available or signup requested
-  if (showSignup || availableUsers.length === 0) {
-    return (
-      <SignupForm 
-        onSignupSuccess={handleSignupSuccess}
-        onCancel={() => setShowSignup(false)}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        {/* User Selection */}
+        {/* User Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">User Profiles</h2>
-            <Button 
-              onClick={() => setShowSignup(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add New User
-            </Button>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {currentUser.name || `User ${currentUser.id}`}
+                  {isAdminMode && (
+                    <span className="ml-2 text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                      Admin Mode
+                    </span>
+                  )}
+                </h2>
+                <p className="text-muted-foreground">
+                  {currentUser.email || `ID: ${currentUser.id}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isAdminMode && (
+                <Button 
+                  onClick={() => navigate('/user-manager')}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to User Manager
+                </Button>
+              )}
+              <Button 
+                onClick={handleSignOut}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                {isAdminMode ? 'Exit Admin Mode' : 'Sign Out'}
+              </Button>
+            </div>
           </div>
-          <UserSelection 
-            selectedUserId={selectedUserId} 
-            onUserChange={handleUserChange}
-            availableUsers={availableUsers}
-          />
         </div>
 
         {/* Dashboard Header */}
@@ -273,6 +325,7 @@ export default function Dashboard() {
 
         {/* Floating Chat Button */}
         <FloatingChatButton user={currentUser} />
+        <AdminDebug />
       </div>
     </div>
   );

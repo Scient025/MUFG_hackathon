@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from inference import SuperannuationInference
 from pydantic import BaseModel
 from scheduler import email_scheduler
+from supabase_config import SupabaseService, UserProfile
 
 # Load environment variables from project root (optional)
 env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
@@ -496,6 +497,148 @@ async def get_available_voices():
         raise HTTPException(status_code=500, detail=f"Error getting voices: {str(e)}")
 
 
+# Supabase endpoints
+@app.get("/supabase/users")
+async def get_all_users():
+    """Get all users from Supabase"""
+    try:
+        users = await SupabaseService.get_all_user_profiles()
+        return {"success": True, "data": [user.to_dict() for user in users]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
+
+@app.get("/supabase/users/{user_id}")
+async def get_user_profile(user_id: str):
+    """Get user profile from Supabase"""
+    try:
+        user = await SupabaseService.get_user_profile(user_id)
+        if user:
+            return {"success": True, "data": user.to_dict()}
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
+
+@app.post("/supabase/users")
+async def create_user_profile(request: UserSignupRequest):
+    """Create user profile in Supabase"""
+    try:
+        user_data = {
+            "id": request.user_id if hasattr(request, 'user_id') else None,
+            "email": request.email if hasattr(request, 'email') else f"user_{request.name.lower().replace(' ', '_')}@example.com",
+            "name": request.name,
+            "age": request.age,
+            "gender": request.gender,
+            "country": request.country,
+            "employment_status": request.employment_status,
+            "annual_income": request.annual_income,
+            "current_savings": request.current_savings,
+            "retirement_age_goal": request.retirement_age_goal,
+            "risk_tolerance": request.risk_tolerance,
+            "contribution_amount": request.contribution_amount,
+            "contribution_frequency": request.contribution_frequency,
+            "employer_contribution": request.employer_contribution,
+            "years_contributed": request.years_contributed,
+            "investment_type": request.investment_type,
+            "fund_name": request.fund_name,
+            "marital_status": request.marital_status,
+            "number_of_dependents": request.number_of_dependents,
+            "education_level": request.education_level,
+            "health_status": request.health_status,
+            "home_ownership_status": request.home_ownership_status,
+            "investment_experience_level": request.investment_experience_level,
+            "financial_goals": request.financial_goals,
+            "insurance_coverage": request.insurance_coverage,
+            "pension_type": request.pension_type,
+            "withdrawal_strategy": request.withdrawal_strategy
+        }
+        
+        success = await SupabaseService.create_user_profile(user_data)
+        if success:
+            return {"success": True, "message": "User profile created successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create user profile")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
+@app.put("/supabase/users/{user_id}")
+async def update_user_profile(user_id: str, request: UserSignupRequest):
+    """Update user profile in Supabase"""
+    try:
+        updates = {
+            "name": request.name,
+            "age": request.age,
+            "gender": request.gender,
+            "country": request.country,
+            "employment_status": request.employment_status,
+            "annual_income": request.annual_income,
+            "current_savings": request.current_savings,
+            "retirement_age_goal": request.retirement_age_goal,
+            "risk_tolerance": request.risk_tolerance,
+            "contribution_amount": request.contribution_amount,
+            "contribution_frequency": request.contribution_frequency,
+            "employer_contribution": request.employer_contribution,
+            "years_contributed": request.years_contributed,
+            "investment_type": request.investment_type,
+            "fund_name": request.fund_name,
+            "marital_status": request.marital_status,
+            "number_of_dependents": request.number_of_dependents,
+            "education_level": request.education_level,
+            "health_status": request.health_status,
+            "home_ownership_status": request.home_ownership_status,
+            "investment_experience_level": request.investment_experience_level,
+            "financial_goals": request.financial_goals,
+            "insurance_coverage": request.insurance_coverage,
+            "pension_type": request.pension_type,
+            "withdrawal_strategy": request.withdrawal_strategy
+        }
+        
+        success = await SupabaseService.update_user_profile(user_id, updates)
+        if success:
+            return {"success": True, "message": "User profile updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update user profile")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
+
+@app.delete("/supabase/users/{user_id}")
+async def delete_user_profile(user_id: str):
+    """Delete user profile from Supabase"""
+    try:
+        success = await SupabaseService.delete_user_profile(user_id)
+        if success:
+            return {"success": True, "message": "User profile deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete user profile")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}")
+
+@app.get("/supabase/users/search/{search_term}")
+async def search_users(search_term: str):
+    """Search users by name or email"""
+    try:
+        users = await SupabaseService.search_users(search_term)
+        return {"success": True, "data": [user.to_dict() for user in users]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching users: {str(e)}")
+
+@app.get("/supabase/users/filter/{filter_type}/{value}")
+async def filter_users(filter_type: str, value: str):
+    """Filter users by specific criteria"""
+    try:
+        users = await SupabaseService.get_users_by_filter(filter_type, value)
+        return {"success": True, "data": [user.to_dict() for user in users]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error filtering users: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -507,6 +650,7 @@ async def health_check():
         "email_scheduler_running": (
             email_scheduler.scheduler.running if email_scheduler.scheduler else False
         ),
+        "supabase_connected": True,
     }
 
 

@@ -10,6 +10,11 @@ interface NavigationTabsProps {
 export function NavigationTabs({ activeTab, onTabChange }: NavigationTabsProps) {
   const tabs = [
     {
+      id: "chatbot",
+      label: "Chatbot",
+      icon: MessageCircle
+    },
+    {
       id: "dashboard",
       label: "Dashboard",
       icon: BarChart3
@@ -33,11 +38,6 @@ export function NavigationTabs({ activeTab, onTabChange }: NavigationTabsProps) 
       id: "risk",
       label: "Risk",
       icon: Shield
-    },
-    {
-      id: "chatbot",
-      label: "Chatbot",
-      icon: MessageCircle
     }
   ];
 

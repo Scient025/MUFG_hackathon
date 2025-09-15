@@ -68,30 +68,30 @@ export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
       <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
         <div className="flex items-center gap-6">
           <Avatar className="w-20 h-20 lg:w-24 lg:h-24">
-            <AvatarImage src="" alt={user.User_ID} />
+            <AvatarImage src="" alt={user.User_ID || user.id || 'User'} />
             <AvatarFallback className="text-2xl lg:text-3xl font-bold bg-primary text-primary-foreground">
-              {user.User_ID.slice(-2)}
+              {user.User_ID ? user.User_ID.slice(-2) : (user.id ? user.id.slice(-2) : 'U')}
             </AvatarFallback>
           </Avatar>
           <div>
             <h1 className="text-3xl lg:text-4xl font-bold text-card-foreground mb-3">
-              Welcome back, {user.Name || user.User_ID}
+              Welcome back, {user.Name || user.name || user.User_ID || user.id || 'User'}
             </h1>
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                Age {user.Age}
+                Age {user.Age || user.age || 'N/A'}
               </Badge>
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                {user.Marital_Status}
+                {user.Marital_Status || user.marital_status || 'N/A'}
               </Badge>
               <Badge variant="outline" className="text-lg py-2 px-4 font-medium">
-                {user.Number_of_Dependents} {user.Number_of_Dependents === 1 ? 'Dependent' : 'Dependents'}
+                {user.Number_of_Dependents || user.number_of_dependents || 0} {(user.Number_of_Dependents || user.number_of_dependents || 0) === 1 ? 'Dependent' : 'Dependents'}
               </Badge>
               <Badge 
                 variant="outline" 
-                className={`text-lg py-2 px-4 font-medium ${getRiskColor(user.Risk_Tolerance)}`}
+                className={`text-lg py-2 px-4 font-medium ${getRiskColor(user.Risk_Tolerance || user.risk_tolerance || 'Medium')}`}
               >
-                {user.Risk_Tolerance} Risk
+                {user.Risk_Tolerance || user.risk_tolerance || 'Medium'} Risk
               </Badge>
             </div>
           </div>
