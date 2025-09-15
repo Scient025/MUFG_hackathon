@@ -113,7 +113,7 @@ export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Select news source" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border border-gray-300">
                 <SelectItem value="newsapi">📰 NewsAPI (Real-time)</SelectItem>
                 <SelectItem value="gemini">🤖 Gemini AI (Generated)</SelectItem>
               </SelectContent>

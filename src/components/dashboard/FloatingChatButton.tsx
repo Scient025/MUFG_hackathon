@@ -78,6 +78,91 @@ export function FloatingChatButton({ user }: FloatingChatButtonProps) {
     setInputValue(question);
   };
 
+  type TablePart = {
+    type: 'table';
+    headers: string[];
+    rows: string[][];
+  } | {
+    type: 'text';
+    content: string;
+  };
+
+  // Function to parse and render markdown tables
+  const parseMarkdownTable = (text: string) => {
+    const tableRegex = /\|(.+)\|\s*\n\|[-\s|:]+\|\s*\n((?:\|.+\|\s*\n?)+)/g;
+    const parts: TablePart[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tableRegex.exec(text)) !== null) {
+      // Add text before the table
+      if (match.index > lastIndex) {
+        const beforeText = text.slice(lastIndex, match.index).trim();
+        if (beforeText) {
+          parts.push({ type: 'text', content: beforeText });
+        }
+      }
+
+      // Parse table headers
+      const headerRow = match[1];
+      const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
+
+      // Parse table rows
+      const bodyText = match[2];
+      const rows = bodyText.trim().split('\n').map(row => {
+        return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+      });
+
+      parts.push({
+        type: 'table',
+        headers,
+        rows: rows.filter(row => row.length === headers.length)
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after the last table
+    if (lastIndex < text.length) {
+      const remainingText = text.slice(lastIndex).trim();
+      if (remainingText) {
+        parts.push({ type: 'text', content: remainingText });
+      }
+    }
+
+    // If no tables found, return the original text as a single text part
+    if (parts.length === 0) {
+      parts.push({ type: 'text', content: text });
+    }
+
+    return parts;
+  };
+
+  // Function to render formatted text with proper sections
+  const renderFormattedText = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const sectionHeaders = ['Summary', 'Strengths', 'Areas for Improvement', 'Recommendations', 
+                          'Next Steps', 'Encouragement Statement', 'Key Metrics', 'Financial Snapshot'];
+    
+    return lines.map((line, lineIdx) => {
+      const isHeading = sectionHeaders.some(header => line.trim().startsWith(header));
+      const isBullet = line.trim().startsWith('-');
+      const isNumbered = line.trim().match(/^\d+\./);
+      
+      return (
+        <div 
+          key={lineIdx} 
+          className={`
+            ${isHeading ? 'font-semibold mt-3 mb-2 text-card-foreground text-base' : ''}
+            ${isBullet || isNumbered ? 'ml-4 mb-1' : 'mb-2'}
+          `}
+        >
+          {line.trim()}
+        </div>
+      );
+    });
+  };
+
   return (
     <>
       {/* Floating Chat Button */}
@@ -103,7 +188,7 @@ export function FloatingChatButton({ user }: FloatingChatButtonProps) {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-card border border-card-border rounded-xl shadow-xl z-40 flex flex-col">
+        <div className="fixed bottom-24 right-6 w-[420px] h-[520px] bg-card border border-card-border rounded-xl shadow-xl z-40 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-card-border">
             <div className="flex items-center gap-3">
@@ -118,29 +203,76 @@ export function FloatingChatButton({ user }: FloatingChatButtonProps) {
           </div>
 
           {/* Chat Area */}
-          <div ref={chatAreaRef} className="flex-1 p-4 overflow-y-auto">
+          <div ref={chatAreaRef} className="flex-1 p-3 overflow-y-auto">
             <div className="space-y-3">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'} w-full`}
                 >
                   {message.type === 'bot' && (
                     <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-1">
                       <Bot className="w-3 h-3" />
                     </div>
                   )}
-                  
-                  <div className={`max-w-[80%] ${message.type === 'user' ? 'order-first' : ''}`}>
-                    <div
-                      className={`p-3 rounded-xl text-sm ${
-                        message.type === 'user'
-                          ? 'bg-primary text-primary-foreground ml-auto'
-                          : 'bg-muted/50'
-                      }`}
-                    >
-                      {message.content}
-                    </div>
+
+                  <div
+                    className={`p-3 rounded-xl text-sm ${
+                      message.type === 'user'
+                        ? 'bg-primary text-primary-foreground max-w-[75%]'
+                        : 'bg-muted/50 w-full'
+                    }`}
+                  >
+                    {message.type === 'bot' ? (
+                      <div className="space-y-3">
+                        {parseMarkdownTable(message.content).map((part, idx) => {
+                          if (part.type === 'table') {
+                            return (
+                              <div key={idx} className="my-4">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse border border-gray-300 bg-white rounded-lg shadow-sm">
+                                    <thead>
+                                      <tr className="bg-gray-50">
+                                        {part.headers.map((header: string, headerIdx: number) => (
+                                          <th
+                                            key={headerIdx}
+                                            className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700 text-xs"
+                                          >
+                                            {header}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {part.rows.map((row: string[], rowIdx: number) => (
+                                        <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                          {row.map((cell: string, cellIdx: number) => (
+                                            <td
+                                              key={cellIdx}
+                                              className="border border-gray-300 px-3 py-2 text-gray-800 text-xs"
+                                            >
+                                              {cell}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div key={idx}>
+                                {renderFormattedText(part.content)}
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
+                    ) : (
+                      message.content
+                    )}
                   </div>
                   
                   {message.type === 'user' && (
