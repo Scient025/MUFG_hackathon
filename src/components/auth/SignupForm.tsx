@@ -82,6 +82,13 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       validation: (value: string) => value.length > 0
     },
     {
+      id: 'username',
+      question: "What's your email address? This will be used as your username.",
+      field: 'username',
+      type: 'text',
+      validation: (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    },
+    {
       id: 'age',
       question: "How old are you?",
       field: 'age',
@@ -246,6 +253,8 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
 
   const [formData, setFormData] = useState<SignupData>({
     name: "",
+    username: "", 
+    password: "",
     age: 30,
     gender: "Male",
     country: "Australia",
@@ -269,8 +278,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     financial_goals: "Retirement",
     insurance_coverage: "Basic",
     pension_type: "Superannuation",
-    withdrawal_strategy: "Fixed",
-    password: ""
+    withdrawal_strategy: "Fixed"
   });
 
   const [loading, setLoading] = useState(false);
@@ -1401,6 +1409,17 @@ Examples:
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
+                    className="text-lg h-12"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="username" className="text-lg font-medium">Email (Username)</Label>
+                  <Input
+                    id="username"
+                    type="email"
+                    value={formData.username}
+                    onChange={(e) => handleInputChange("username", e.target.value)}
                     className="text-lg h-12"
                     required
                   />

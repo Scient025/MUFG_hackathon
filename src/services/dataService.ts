@@ -3,6 +3,60 @@
 
 const API_BASE_URL = '/api';
 
+
+export interface SignupData {
+  name: string;
+  username: string; 
+  password: string;  
+  age: number;
+  gender: string;
+  country: string;
+  employment_status: string;
+  annual_income: number;
+  current_savings: number;
+  retirement_age_goal: number;
+  risk_tolerance: 'Low' | 'Medium' | 'High';
+  contribution_amount: number;
+  contribution_frequency: string;
+  employer_contribution: number;
+  years_contributed?: number;
+  investment_type: string;
+  fund_name: string;
+  marital_status: string;
+  number_of_dependents: number;
+  education_level: string;
+  health_status: string;
+  home_ownership_status: string;
+  investment_experience_level: string;
+  financial_goals: string;
+  insurance_coverage: string;
+  pension_type: string;
+  withdrawal_strategy: string;
+}
+
+// Login interface
+export interface LoginCredentials {
+  username: string;  // Email address
+  password: string;
+}
+
+export interface LoginResult {
+  success: boolean;
+  userId?: string;
+  name?: string;
+  username?: string;
+  message?: string;
+}
+
+export interface User {
+  User_ID: string;
+  Name: string;
+  Age: number;
+  Risk_Tolerance: string;
+  Annual_Income: number;
+  Current_Savings: number;
+}
+
 export interface UserProfile {
   User_ID: string;
   Name?: string; // Generated name from backend
@@ -179,13 +233,18 @@ export const dataService = {
   },
 
   // Signup interfaces
-  signupUser: async (signupData: SignupData) => {
+  signupUser: async (signupData: SignupData): Promise<{
+    success: boolean;
+    userId: string;
+    user: any;
+    message: string;
+  }> => {
     try {
       // Generate a unique ID for the user
       const userId = `U${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
       
       console.log('Attempting to save user with ID:', userId);
-      console.log('Signup data:', signupData);
+      console.log('Signup data (excluding password):', { ...signupData, password: '***' });
       
       // Try to save to Supabase first (primary storage)
       let supabaseResult = null;
@@ -197,6 +256,7 @@ export const dataService = {
           // Fields from signup form
           "User_ID": userId,
           "Name": signupData.name,
+          "username": signupData.username,
           "Age": signupData.age,
           "Gender": signupData.gender,
           "Country": signupData.country,
@@ -268,7 +328,7 @@ export const dataService = {
           .single();
         
         if (error) {
-          console.error('❌ Supabase signup failed:', error);
+          console.error(' Supabase signup failed:', error);
           console.error('Error details:', {
             message: error.message,
             details: error.details,
@@ -278,11 +338,12 @@ export const dataService = {
           throw new Error(`Supabase error: ${error.message}`);
         } else {
           supabaseResult = data;
-          console.log('✅ Supabase signup successful:', data);
+          console.log(' Supabase signup successful:', data);
         }
-      } catch (supabaseError) {
-        console.error('Supabase signup failed:', supabaseError);
-        throw new Error(`Failed to save to Supabase: ${supabaseError.message}`);
+      } catch (error) {
+        console.error('Supabase signup failed:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new Error(`Failed to save to Supabase: ${errorMessage}`);
       }
       
       // Also try to save to backend API as backup
@@ -294,18 +355,19 @@ export const dataService = {
           },
           body: JSON.stringify({
             ...signupData,
-            user_id: userId
+            user_id: userId,
+            password: signupData.password // Send plain password to backend per requirement
           })
         });
         
         if (response.ok) {
           const backendResult = await response.json();
-          console.log('✅ Backend signup successful:', backendResult);
+          console.log(' Backend signup successful:', backendResult);
         } else {
-          console.warn('⚠️ Backend signup failed with status:', response.status);
+          console.warn(' Backend signup failed with status:', response.status);
         }
       } catch (backendError) {
-        console.warn('⚠️ Backend signup failed:', backendError);
+        console.warn(' Backend signup failed:', backendError);
       }
       
       // Return success with Supabase data
@@ -335,124 +397,68 @@ export const dataService = {
     }
   },
 
-  // Login user with User ID and password
+  // Login user with username(email) and password
   loginUser: async (credentials: LoginCredentials): Promise<LoginResult> => {
     try {
       const { supabase } = await import('@/lib/supabase');
 
-      console.log('Attempting login for Name:', credentials.name);
-      console.log('Password provided:', credentials.password);
-
-      // Find the user by Name
+      console.log('Attempting login for username:', credentials.username);
+      
+      // Find the user by username(email)
       const { data: userData, error: userError } = await supabase
         .from('MUFG')
-        .select('User_ID, Name, Password')
-        .eq('Name', credentials.name);
+        .select('*')
+        .eq('username', credentials.username)
+        .single();
 
-      console.log('User lookup result:', { userData, userError });
-
-      if (userError || !userData || userData.length === 0) {
-        return {
-          success: false,
-          message: 'User not found'
+      if (userError || !userData) {
+        console.error('User not found or error:', userError);
+        return { 
+          success: false, 
+          message: 'Invalid username or password.' 
         };
       }
 
-      // Check if password matches
-      const user = userData[0];
-      if (user.Password !== credentials.password) {
-        return {
-          success: false,
-          message: 'Invalid password'
+      // Verify password: support plaintext and bcrypt-hashed
+      const storedPassword: string = userData.Password || '';
+      let isPasswordValid = false;
+      if (storedPassword.startsWith('$2')) {
+        const bcrypt = await import('bcryptjs');
+        isPasswordValid = await bcrypt.compare(credentials.password, storedPassword);
+      } else {
+        isPasswordValid = credentials.password === storedPassword;
+      }
+      
+      if (!isPasswordValid) {
+        console.error('Invalid password');
+        return { 
+          success: false, 
+          message: 'Invalid username or password.' 
         };
       }
 
-      console.log('Login successful for user:', user.User_ID, 'Name:', user.Name);
-      return {
-        success: true,
-        userId: user.User_ID,
-        name: user.Name,
-        message: 'Login successful'
+      const session = {
+        userId: userData.User_ID,
+        username: userData.username,
+        name: userData.Name,
+        loggedInAt: new Date().toISOString()
+      };
+
+      localStorage.setItem('userSession', JSON.stringify(session));
+
+      return { 
+        success: true, 
+        userId: userData.User_ID,
+        name: userData.Name,
+        message: 'Login successful',
+        username: userData.username
       };
     } catch (error) {
       console.error('Login error:', error);
-      return {
-        success: false,
-        message: 'An unexpected error occurred'
+      return { 
+        success: false, 
+        message: 'An error occurred during login. Please try again.' 
       };
     }
   },
-
-  // Debug function to check if user exists
-  debugUserExists: async (userId: string): Promise<any> => {
-    try {
-      const { supabase } = await import('@/lib/supabase');
-      
-      console.log('Debug: Checking if user exists with ID:', userId);
-      
-      const { data, error } = await supabase
-        .from('MUFG')
-        .select('User_ID, Name, Password')
-        .eq('User_ID', userId);
-      
-      console.log('Debug query result:', { data, error });
-      return { data, error };
-    } catch (error) {
-      console.error('Debug error:', error);
-      return { data: null, error };
-    }
-  }
 };
-
-// Signup data interface
-export interface SignupData {
-  name: string;
-  age: number;
-  gender: string;
-  country: string;
-  employment_status: string;
-  annual_income: number;
-  current_savings: number;
-  retirement_age_goal: number;
-  risk_tolerance: string;
-  contribution_amount: number;
-  contribution_frequency: string;
-  employer_contribution: number;
-  years_contributed: number;
-  investment_type: string;
-  fund_name: string;
-  marital_status: string;
-  number_of_dependents: number;
-  education_level: string;
-  health_status: string;
-  home_ownership_status: string;
-  investment_experience_level: string;
-  financial_goals: string;
-  insurance_coverage: string;
-  pension_type: string;
-  withdrawal_strategy: string;
-  password: string;
-}
-
-// Login interface
-export interface LoginCredentials {
-  name: string;
-  password: string;
-}
-
-export interface LoginResult {
-  success: boolean;
-  userId?: string;
-  name?: string;
-  message?: string;
-}
-
-// User list interface
-export interface User {
-  User_ID: string;
-  Name: string;
-  Age: number;
-  Risk_Tolerance: string;
-  Annual_Income: number;
-  Current_Savings: number;
-}

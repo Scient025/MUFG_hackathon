@@ -6,16 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Search, User, LogIn, RefreshCw } from "lucide-react";
-import { UserProfile } from "@/lib/supabase";
+// Backend payload shape from /api/supabase/users (camelCase/lowercase)
+type BackendUser = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  annual_income?: number | null;
+  current_savings?: number | null;
+  created_at?: string | null;
+  [key: string]: any;
+};
 
 interface UserSelectionPanelProps {
-  onUserSelect: (user: UserProfile) => void;
+  onUserSelect: (user: BackendUser) => void;
   onLoginAsUser: (userId: string) => void;
 }
 
 export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectionPanelProps) {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<BackendUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<BackendUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,10 +61,12 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
     let filtered = users;
 
     if (searchTerm) {
-      filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(user => {
+        const name = (user?.name ?? '').toString().toLowerCase();
+        const email = (user?.email ?? '').toString().toLowerCase();
+        return name.includes(term) || email.includes(term);
+      });
     }
 
     setFilteredUsers(filtered);
@@ -85,7 +96,10 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    if (!dateString) return 'N/A';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString();
   };
 
   if (loading) {
@@ -192,7 +206,7 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
         <Card>
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(users.reduce((sum, user) => sum + user.annual_income, 0))}
+              {formatCurrency(users.reduce((sum, user) => sum + (user.annual_income || 0), 0))}
             </div>
             <div className="text-sm text-gray-600">Total Annual Income</div>
           </CardContent>
@@ -200,7 +214,7 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
         <Card>
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-purple-600">
-              {formatCurrency(users.reduce((sum, user) => sum + user.current_savings, 0))}
+              {formatCurrency(users.reduce((sum, user) => sum + (user.current_savings || 0), 0))}
             </div>
             <div className="text-sm text-gray-600">Total Savings</div>
           </CardContent>
@@ -231,8 +245,8 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium">{formatCurrency(user.annual_income)}</div>
-                  <div className="text-xs text-muted-foreground">{formatDate(user.created_at)}</div>
+                  <div className="text-sm font-medium">{formatCurrency(user.annual_income ?? 0)}</div>
+                  <div className="text-xs text-muted-foreground">{formatDate(user.created_at ?? '')}</div>
                 </div>
               </div>
             ))}

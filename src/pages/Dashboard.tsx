@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { SupabaseService } from "@/services/supabaseService";
-import { UserProfile } from "@/lib/supabase";
+
 import { LogOut, User, ArrowLeft } from "lucide-react";
 import { AdminDebug } from "@/components/debug/AdminDebug";
 
@@ -25,7 +25,7 @@ export default function Dashboard() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("chatbot");
   const [goals, setGoals] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [summaryStats, setSummaryStats] = useState<any>(null);
   const [peerComparison, setPeerComparison] = useState<any>(null);
   const [projection, setProjection] = useState<any>(null);
@@ -34,14 +34,15 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
 
-  // Handle custom login (from our custom login system)
+  const initRef = useRef(false);
   useEffect(() => {
-    // Check for userId from navigation state or localStorage
-    const userIdFromState = location.state?.userId;
+    if (initRef.current) return;
+    initRef.current = true;
+    
+    const userIdFromState = (location.state as any)?.userId;
     const currentUserFromStorage = localStorage.getItem('currentUser');
-    
+    const userSessionFromStorage = localStorage.getItem('userSession');
     console.log('Checking for custom userId:', { userIdFromState, currentUserFromStorage });
-    
     if (userIdFromState) {
       console.log('Got userId from navigation state:', userIdFromState);
       setCustomUserId(userIdFromState);
@@ -53,17 +54,26 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error parsing currentUser from localStorage:', error);
       }
+    } else if (userSessionFromStorage) {
+      try {
+        const session = JSON.parse(userSessionFromStorage);
+        if (session?.userId) {
+          console.log('Got userId from userSession:', session.userId);
+          setCustomUserId(session.userId);
+        }
+      } catch (error) {
+        console.error('Error parsing userSession from localStorage:', error);
+      }
     } else {
       console.log('No custom userId found');
     }
-    
     // Mark initialization as complete
     setInitializing(false);
-  }, [location.state]);
+  }, []);
 
   const loadUserData = async () => {
     // Use custom userId if available, otherwise fall back to admin mode
-    const userIdToUse = customUserId || (isAdminMode ? adminUser?.id : null);
+    const userIdToUse = customUserId || (isAdminMode ? adminUser?.User_ID : null);
     
     if (!userIdToUse) {
       console.log('No userId available for loading data');
@@ -72,14 +82,13 @@ export default function Dashboard() {
 
     console.log('Loading user data for userId:', userIdToUse);
     
-    // In admin mode, use the admin user directly
     if (isAdminMode && adminUser) {
       setCurrentUser(adminUser);
       setSummaryStats({
-        current_savings: adminUser.current_savings,
-        projected_pension: adminUser.current_savings * 5, // Mock calculation
+        current_savings: adminUser.Current_Savings,
+        projected_pension: adminUser.Current_Savings * 5, 
         percent_to_goal: 20,
-        monthly_income_at_retirement: adminUser.current_savings * 0.04 / 12
+        monthly_income_at_retirement: adminUser.Current_Savings * 0.04 / 12
       });
       setPeerComparison({
         total_peers: 100,
@@ -89,9 +98,9 @@ export default function Dashboard() {
         avg_contribution: 1200
       });
       setProjection({
-        current_projection: adminUser.current_savings * 5,
-        optimistic_projection: adminUser.current_savings * 7,
-        pessimistic_projection: adminUser.current_savings * 3
+        current_projection: adminUser.Current_Savings * 5,
+        optimistic_projection: adminUser.Current_Savings * 7,
+        pessimistic_projection: adminUser.Current_Savings * 3
       });
       return;
     }
@@ -152,10 +161,10 @@ export default function Dashboard() {
         setCurrentUser(userProfile);
         // Generate mock data for now - you can replace with real calculations
         setSummaryStats({
-          current_savings: userProfile.current_savings,
-          projected_pension: userProfile.current_savings * 5, // Mock calculation
+          current_savings: userProfile.Current_Savings,
+          projected_pension: userProfile.Current_Savings * 5, 
           percent_to_goal: 20,
-          monthly_income_at_retirement: userProfile.current_savings * 0.04 / 12
+          monthly_income_at_retirement: userProfile.Current_Savings * 0.04 / 12
         });
         setPeerComparison({
           total_peers: 100,
@@ -165,10 +174,10 @@ export default function Dashboard() {
           avg_contribution: 1200
         });
         setProjection({
-          current_projection: userProfile.current_savings * 5,
-          adjusted_projection: userProfile.current_savings * 6,
-          years_to_retirement: userProfile.retirement_age_goal - userProfile.age,
-          monthly_income_at_retirement: userProfile.current_savings * 0.04 / 12
+          current_projection: userProfile.Current_Savings * 5,
+          adjusted_projection: (userProfile.Current_Savings || 0) * 6,
+          years_to_retirement: (userProfile.Retirement_Age_Goal || 65) - (userProfile.Age || 0),
+          monthly_income_at_retirement: userProfile.Current_Savings * 0.04 / 12
         });
       }
     } catch (error) {
@@ -186,22 +195,30 @@ export default function Dashboard() {
     } else if (customUserId) {
       // Handle custom login sign out
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('userSession');
       setCustomUserId(null);
       navigate('/login');
     } else {
+      try { localStorage.removeItem('userSession'); } catch (e) {}
       await signOut();
       navigate('/login');
     }
   };
 
   // Redirect to login if not authenticated (unless in admin mode)
+  const redirectingRef = useRef(false);
   useEffect(() => {
     console.log('Auth check:', { authLoading, user: !!user, isAdminMode, customUserId, initializing });
-    
+    if (redirectingRef.current) return;
     // Only redirect if we're sure there's no authentication method available and initialization is complete
     if (!authLoading && !user && !isAdminMode && !customUserId && !initializing) {
       console.log('No authentication found, redirecting to login');
-      navigate('/login');
+      redirectingRef.current = true;
+      try {
+        localStorage.removeItem('userSession');
+        localStorage.removeItem('currentUser');
+      } catch (e) {}
+      navigate('/login', { replace: true });
     }
   }, [user, authLoading, isAdminMode, customUserId, initializing, navigate]);
 
@@ -266,8 +283,8 @@ export default function Dashboard() {
   ];
 
   // Generate growth projection data
-  const currentSavings = currentUser.Current_Savings || currentUser.current_savings || 0;
-  const totalContribution = currentUser.Total_Annual_Contribution || currentUser.total_annual_contribution || 0;
+  const currentSavings = currentUser?.Current_Savings || 0;
+  const totalContribution = currentUser?.Total_Annual_Contribution || 0;
   
   const growthData = [
     { year: 2024, balance: currentSavings, contributions: totalContribution, milestone: "Current Position" },
@@ -284,7 +301,7 @@ export default function Dashboard() {
   ];
 
   // Calculate goal progress
-  const projectedPension = currentUser.Projected_Pension_Amount || currentUser.projected_pension_amount || currentSavings * 5;
+  const projectedPension = currentUser?.Projected_Pension_Amount || currentSavings * 5;
   const goalProgress = {
     current: currentSavings,
     target: projection?.adjusted_projection || projectedPension,
@@ -294,7 +311,7 @@ export default function Dashboard() {
   // Handle calculator tab - navigate to retirement calculator page
   const handleTabChange = (tab: string) => {
     if (tab === "calculator") {
-      navigate(`/retirement-calculator/${currentUser?.id}`);
+      navigate(`/retirement-calculator/${currentUser?.User_ID}`);
       return;
     }
     setActiveTab(tab);
@@ -373,7 +390,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h2 className="text-2xl font-bold">
-                  {currentUser.name || `User ${currentUser.id}`}
+                  {currentUser?.Name || `User ${currentUser?.User_ID}`}
                   {isAdminMode && (
                     <span className="ml-2 text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
                       Admin Mode
@@ -381,7 +398,7 @@ export default function Dashboard() {
                   )}
                 </h2>
                 <p className="text-muted-foreground">
-                  {currentUser.email || `ID: ${currentUser.id}`}
+                  {`ID: ${currentUser?.User_ID}`}
                 </p>
               </div>
             </div>
