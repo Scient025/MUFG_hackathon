@@ -163,7 +163,7 @@ chmod +x setup.sh
    pip install -r requirements.txt
    ```
 
-2. **Install Node.js Dependencies**
+2. **Install Node.js Dependencies in the ROOT Folder**
    ```bash
    npm install
    ```
@@ -183,6 +183,12 @@ chmod +x setup.sh
    # Azure Speech Services (for voice features)
    AZURE_SPEECH_KEY=your_azure_speech_key_here
    AZURE_SPEECH_REGION=your_azure_region_here
+
+   #Supabase
+   SUPABASE_URL=
+   SUPABASE_SERVICE_KEY=
+   VITE_SUPABASE_URL=
+   VITE_SUPABASE_ANON_KEY=
    
    # Email Service (for automated emails)
    SMTP_HOST=smtp.gmail.com
