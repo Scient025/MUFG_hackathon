@@ -11,10 +11,10 @@ import os
 from typing import Dict, List, Any
 import warnings
 warnings.filterwarnings('ignore')
+from supabase_config import supabase, USER_PROFILES_TABLE
 
 class SuperannuationMLPipeline:
-    def __init__(self, csv_path: str = "case1.csv"):
-        self.csv_path = csv_path
+    def __init__(self):
         self.df = None
         self.scaler = StandardScaler()
         self.label_encoders = {}
@@ -22,36 +22,74 @@ class SuperannuationMLPipeline:
         self.cluster_labels = None
         
     def load_and_preprocess_data(self):
-        """Load CSV data and preprocess for ML models"""
-        print("Loading data from CSV...")
-        self.df = pd.read_csv(self.csv_path)
+        """Load data from Supabase and preprocess for ML models"""
+        print("Loading data from Supabase...")
         
-        # Handle missing values
-        self.df = self.df.fillna({
-            'Risk_Tolerance': 'Medium',
-            'Investment_Type': 'ETF',
-            'Fund_Name': 'Unknown',
-            'Marital_Status': 'Single',
-            'Education_Level': 'Bachelor\'s',
-            'Health_Status': 'Average'
-        })
-        
-        # Encode categorical variables
-        categorical_columns = [
-            'Gender', 'Country', 'Employment_Status', 'Risk_Tolerance',
-            'Investment_Type', 'Fund_Name', 'Marital_Status', 'Education_Level',
-            'Health_Status', 'Home_Ownership_Status', 'Investment_Experience_Level',
-            'Financial_Goals', 'Insurance_Coverage', 'Pension_Type', 'Withdrawal_Strategy'
-        ]
-        
-        for col in categorical_columns:
-            if col in self.df.columns:
-                le = LabelEncoder()
-                self.df[f'{col}_encoded'] = le.fit_transform(self.df[col].astype(str))
-                self.label_encoders[col] = le
-        
-        print(f"Data loaded: {len(self.df)} users, {len(self.df.columns)} features")
-        return self.df
+        try:
+            # Fetch all user data from Supabase
+            response = supabase.table(USER_PROFILES_TABLE).select("*").execute()
+            
+            if not response.data:
+                raise ValueError("No data found in Supabase database")
+            
+            # Convert to DataFrame
+            self.df = pd.DataFrame(response.data)
+            print(f"Raw data loaded: {len(self.df)} users, {len(self.df.columns)} features")
+            
+            # Handle missing values
+            self.df = self.df.fillna({
+                'Risk_Tolerance': 'Medium',
+                'Investment_Type': 'ETF',
+                'Fund_Name': 'Unknown',
+                'Marital_Status': 'Single',
+                'Education_Level': 'Bachelor\'s',
+                'Health_Status': 'Average',
+                'Annual_Income': 0,
+                'Current_Savings': 0,
+                'Contribution_Amount': 0,
+                'Years_Contributed': 0,
+                'Age': 30,
+                'Portfolio_Diversity_Score': 0.5,
+                'Savings_Rate': 0.1,
+                'Annual_Return_Rate': 5.0,
+                'Volatility': 2.0,
+                'Fees_Percentage': 1.0,
+                'Projected_Pension_Amount': 0
+            })
+            
+            # Convert numeric columns to proper types
+            numeric_columns = [
+                'Age', 'Annual_Income', 'Current_Savings', 'Contribution_Amount',
+                'Years_Contributed', 'Portfolio_Diversity_Score', 'Savings_Rate',
+                'Annual_Return_Rate', 'Volatility', 'Fees_Percentage', 'Projected_Pension_Amount'
+            ]
+            
+            for col in numeric_columns:
+                if col in self.df.columns:
+                    self.df[col] = pd.to_numeric(self.df[col], errors='coerce')
+            
+            # Encode categorical variables
+            categorical_columns = [
+                'Gender', 'Country', 'Employment_Status', 'Risk_Tolerance',
+                'Investment_Type', 'Fund_Name', 'Marital_Status', 'Education_Level',
+                'Health_Status', 'Home_Ownership_Status', 'Investment_Experience_Level',
+                'Financial_Goals', 'Insurance_Coverage', 'Pension_Type', 'Withdrawal_Strategy'
+            ]
+            
+            for col in categorical_columns:
+                if col in self.df.columns:
+                    # Fill any remaining NaN values in categorical columns
+                    self.df[col] = self.df[col].fillna('Unknown')
+                    le = LabelEncoder()
+                    self.df[f'{col}_encoded'] = le.fit_transform(self.df[col].astype(str))
+                    self.label_encoders[col] = le
+            
+            print(f"Data preprocessed: {len(self.df)} users, {len(self.df.columns)} features")
+            return self.df
+            
+        except Exception as e:
+            print(f"Error loading data from Supabase: {e}")
+            raise
     
     def train_user_segmentation_model(self, n_clusters: int = 5):
         """Train KMeans clustering for user segmentation"""
@@ -194,7 +232,7 @@ class SuperannuationMLPipeline:
         return self.models
 
 if __name__ == "__main__":
-    # Train all models
+    # Train all models using Supabase data
     pipeline = SuperannuationMLPipeline()
     models = pipeline.train_all_models()
     
@@ -204,4 +242,6 @@ if __name__ == "__main__":
     print("- risk_prediction_model.pkl: Risk tolerance prediction")
     print("- investment_recommendation_model.pkl: Investment recommendations")
     print("- scaler.pkl: Feature scaler")
+    print("- risk_scaler.pkl: Risk prediction scaler")
+    print("- investment_scaler.pkl: Investment model scaler")
     print("- label_encoders.pkl: Categorical encoders")

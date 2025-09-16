@@ -40,9 +40,9 @@ export function UserSelection({ selectedUserId, onUserChange, availableUsers }: 
           {availableUsers.map((user) => (
             <SelectItem key={user.User_ID} value={user.User_ID} className="text-base py-3 bg-white hover:bg-gray-50">
               <div className="flex flex-col">
-                <span className="font-medium text-gray-900">{user.Name || user.User_ID}</span>
+                <span className="font-medium text-gray-900">{user.User_ID}</span>
                 <span className="text-sm text-gray-600">
-                  {user.User_ID} - Age {user.Age}, {user.Risk_Tolerance} Risk
+                  {user.Name || 'No Name'} - Age {user.Age}, {user.Risk_Tolerance} Risk
                 </span>
               </div>
             </SelectItem>

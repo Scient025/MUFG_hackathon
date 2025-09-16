@@ -170,16 +170,16 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
               <SelectTrigger>
                 <SelectValue placeholder="Choose a user to view data..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border-2 border-gray-200">
                 {filteredUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
+                  <SelectItem key={user.id} value={user.id} className="bg-white hover:bg-gray-50">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                         <User className="w-4 h-4 text-primary-foreground" />
                       </div>
                       <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="font-medium text-gray-900">{user.id}</div>
+                        <div className="text-sm text-gray-600">{user.name || 'No Name'} - {user.email || 'No Email'}</div>
                       </div>
                     </div>
                   </SelectItem>

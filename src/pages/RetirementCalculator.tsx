@@ -56,13 +56,13 @@ export default function RetirementCalculator() {
   const [calculatorInputs, setCalculatorInputs] = useState<CalculatorInputs>({
     currentAge: 30,
     retirementAge: 65,
-    currentBalance: 100000, // default in INR
-    monthlyContribution: 10000,
-    employerContribution: 2000,
+    currentBalance: 50000, // default in USD
+    monthlyContribution: 1000,
+    employerContribution: 500,
     annualReturnRate: 7.5,
-    inflationRate: 5.0,
+    inflationRate: 3.0,
     taxRate: 15,
-    yearlyWithdrawal: 600000,
+    yearlyWithdrawal: 60000,
     salaryGrowthRate: 3.0,
     contributionIncreaseRate: 2.0
   });
@@ -97,13 +97,13 @@ export default function RetirementCalculator() {
           const initialInputs = {
             currentAge: data.Age ?? 30,
             retirementAge: data.Retirement_Age_Goal ?? 65,
-            currentBalance: data.Current_Savings ?? 100000,
-            monthlyContribution: data.Contribution_Amount ?? 10000,
-            employerContribution: data.Employer_Contribution ?? 2000,
+            currentBalance: data.Current_Savings ?? 50000,
+            monthlyContribution: data.Contribution_Amount ?? 1000,
+            employerContribution: data.Employer_Contribution ?? 500,
             annualReturnRate: data.Annual_Return_Rate ?? (data.Risk_Tolerance === 'High' ? 9 : data.Risk_Tolerance === 'Low' ? 6 : 7.5),
-            inflationRate: data.Inflation_Rate ?? 5.0,
+            inflationRate: data.Inflation_Rate ?? 3.0,
             taxRate: data.Tax_Rate ?? 15,
-            yearlyWithdrawal: data.Yearly_Withdrawal ?? 600000,
+            yearlyWithdrawal: data.Yearly_Withdrawal ?? 60000,
             salaryGrowthRate: 3.0,
             contributionIncreaseRate: 2.0
           };
@@ -123,9 +123,9 @@ export default function RetirementCalculator() {
               name: userData.name || 'Demo User',
               Age: userData.age || 30,
               Retirement_Age_Goal: userData.retirement_age_goal || 65,
-              Current_Savings: userData.current_savings || 100000,
-              Contribution_Amount: userData.contribution_amount || 10000,
-              Employer_Contribution: userData.employer_contribution || 2000,
+              Current_Savings: userData.current_savings || 50000,
+              Contribution_Amount: userData.contribution_amount || 1000,
+              Employer_Contribution: userData.employer_contribution || 500,
               Risk_Tolerance: userData.risk_tolerance || 'Medium',
               Annual_Return_Rate: userData.annual_return_rate || undefined
             };
@@ -135,9 +135,9 @@ export default function RetirementCalculator() {
               name: 'Demo User',
               Age: 30,
               Retirement_Age_Goal: 65,
-              Current_Savings: 100000,
-              Contribution_Amount: 10000,
-              Employer_Contribution: 2000,
+              Current_Savings: 50000,
+              Contribution_Amount: 1000,
+              Employer_Contribution: 500,
               Risk_Tolerance: 'Medium'
             };
           }
@@ -151,9 +151,9 @@ export default function RetirementCalculator() {
             monthlyContribution: mockProfile.Contribution_Amount,
             employerContribution: mockProfile.Employer_Contribution,
             annualReturnRate: mockProfile.Annual_Return_Rate ?? (mockProfile.Risk_Tolerance === 'High' ? 9 : mockProfile.Risk_Tolerance === 'Low' ? 6 : 7.5),
-            inflationRate: 5.0,
+            inflationRate: 3.0,
             taxRate: 15,
-            yearlyWithdrawal: 600000,
+            yearlyWithdrawal: 60000,
             salaryGrowthRate: 3.0,
             contributionIncreaseRate: 2.0
           };
@@ -283,11 +283,11 @@ export default function RetirementCalculator() {
     { name: 'Investment Growth', value: retirementAnalysis.investmentGrowth, color: '#10b981' },
   ];
 
-  // Currency formatting: INR
+  // Currency formatting: USD
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
@@ -467,7 +467,7 @@ export default function RetirementCalculator() {
                     <LineChart data={projectionData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottomRight', offset: -5 }} />
-                      <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} />
+                      <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
                       <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                       <Legend />
                       <Line type="monotone" dataKey={includeInflation ? "inflationAdjustedBalance" : "afterTaxBalance"} stroke="#10b981" strokeWidth={3} name={includeInflation ? "Inflation-Adjusted Balance" : "Projected Balance"} dot={false} />

@@ -1,11 +1,12 @@
-import { Wallet, Target, TrendingUp, Building, PiggyBank } from "lucide-react";
+import { Wallet, Target, TrendingUp, Building, PiggyBank, Heart, AlertTriangle, Shield } from "lucide-react";
 
 interface MetricsGridProps {
   user: any;
   summaryStats: any;
+  advancedMetrics?: any;
 }
 
-export function MetricsGrid({ user, summaryStats }: MetricsGridProps) {
+export function MetricsGrid({ user, summaryStats, advancedMetrics }: MetricsGridProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
@@ -21,6 +22,11 @@ export function MetricsGrid({ user, summaryStats }: MetricsGridProps) {
   const monthlyIncomeAt65 = summaryStats?.monthly_income_at_retirement || 0;
   const employerContribution = user?.Employer_Contribution || 0;
   const totalAnnualContribution = user?.Total_Annual_Contribution || 0;
+  
+  // Advanced metrics
+  const financialHealthScore = advancedMetrics?.financial_health_score || 0;
+  const churnRiskPercentage = advancedMetrics?.churn_risk_percentage || 0;
+  const anomalyScore = advancedMetrics?.anomaly_score || 0;
 
   const metricCards = [
     {
@@ -36,6 +42,27 @@ export function MetricsGrid({ user, summaryStats }: MetricsGridProps) {
       icon: Target,
       status: percentToGoal >= 75 ? "good" : percentToGoal >= 50 ? "warning" : "risk",
       subtitle: "On track to retirement"
+    },
+    {
+      title: "Financial Health Score",
+      value: `${financialHealthScore.toFixed(0)}/100`,
+      icon: Heart,
+      status: financialHealthScore >= 80 ? "good" : financialHealthScore >= 60 ? "warning" : "risk",
+      subtitle: "Overall financial wellness"
+    },
+    {
+      title: "Churn Risk",
+      value: `${churnRiskPercentage.toFixed(1)}%`,
+      icon: AlertTriangle,
+      status: churnRiskPercentage < 30 ? "good" : churnRiskPercentage < 60 ? "warning" : "risk",
+      subtitle: "Risk of stopping contributions"
+    },
+    {
+      title: "Anomaly Score",
+      value: `${anomalyScore.toFixed(1)}%`,
+      icon: Shield,
+      status: anomalyScore < 30 ? "good" : anomalyScore < 70 ? "warning" : "risk",
+      subtitle: "Account activity monitoring"
     },
     {
       title: "Estimated Monthly Income at 65",
@@ -70,7 +97,7 @@ export function MetricsGrid({ user, summaryStats }: MetricsGridProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
       {metricCards.map((metric) => {
         const Icon = metric.icon;
         const statusClass = getStatusClass(metric.status);

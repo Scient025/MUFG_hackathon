@@ -7,6 +7,7 @@ import aiohttp
 import google.generativeai as genai
 import logging
 from inference import SuperannuationInference
+from integrated_ml_pipeline import IntegratedMLPipeline
 
 
 # Try to load .env file, but don't fail if it doesn't exist
@@ -71,6 +72,7 @@ class SuperannuationChatRouter:
     def __init__(self, api_base_url: str = "http://localhost:8000", gemini_api_key: str = None):
         self.api_base_url = api_base_url
         self.inference_engine = SuperannuationInference()
+        self.advanced_ml_pipeline = IntegratedMLPipeline()
         
         # Configure Gemini API
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or "AIzaSyDBVO_5h4L6j2-M1q-1PecgC42sFQYWv0w"
@@ -547,6 +549,13 @@ class SuperannuationChatRouter:
         risk_data = context["risk_prediction"]
         segment = context["segment"]
         
+        # Get advanced ML analysis
+        try:
+            advanced_analysis = self.advanced_ml_pipeline.get_comprehensive_user_analysis(user_id)
+        except Exception as e:
+            logger.warning(f"Could not get advanced ML analysis: {e}")
+            advanced_analysis = {}
+        
         # Calculate key metrics for tables
         age = self.safe_get(user_profile, 'Age', 0)
         monthly_contrib = self.safe_get(user_profile, 'Contribution_Amount', 0)
@@ -560,6 +569,15 @@ class SuperannuationChatRouter:
         peer_stats = self.safe_get(segment, "peer_stats", {})
         avg_savings = self.safe_get(peer_stats, 'avg_savings', 0)
         avg_contrib = self.safe_get(peer_stats, 'avg_contribution', 0)
+        
+        # Advanced ML metrics
+        financial_health = self.safe_get(advanced_analysis, 'financial_health', {})
+        churn_risk = self.safe_get(advanced_analysis, 'churn_risk', {})
+        anomaly_detection = self.safe_get(advanced_analysis, 'anomaly_detection', {})
+        fund_recommendations = self.safe_get(advanced_analysis, 'fund_recommendations', {})
+        monte_carlo = self.safe_get(advanced_analysis, 'monte_carlo_simulation', {})
+        peer_matching = self.safe_get(advanced_analysis, 'peer_matching', {})
+        portfolio_optimization = self.safe_get(advanced_analysis, 'portfolio_optimization', {})
         
         unified_prompt = f"""
         {SHARED_PROMPT_INSTRUCTIONS}
@@ -584,10 +602,25 @@ class SuperannuationChatRouter:
         - Monthly Contribution: ${monthly_contrib:,.0f}
         - Risk Tolerance: {self.safe_get(user_profile, 'Risk_Tolerance', 'Unknown')}
         - Investment Type: {self.safe_get(user_profile, 'Investment_Type', 'Unknown')}
+        - Insurance Coverage: {self.safe_get(user_profile, 'Insurance_Coverage', 'Not specified')}
+        - Marital Status: {self.safe_get(user_profile, 'Marital_Status', 'Unknown')}
+        - Education Level: {self.safe_get(user_profile, 'Education_Level', 'Unknown')}
+        - Employment Status: {self.safe_get(user_profile, 'Employment_Status', 'Unknown')}
         - Projected Pension: ${projected_pension:,.0f}
         - Years to Retirement: {years_to_retirement}
         - Monthly Retirement Income: ${self.safe_get(projection, 'monthly_income_at_retirement', 0):,.0f}
         - Model Risk Prediction: {self.safe_get(risk_data, 'predicted_risk', 'Unknown')} (confidence: {self.safe_get(risk_data, 'confidence', 0):.1%})
+        
+        ADVANCED ML INSIGHTS:
+        - Financial Health Score: {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 (Above {self.safe_get(financial_health, 'peer_percentile', 0):.0f}% of peers)
+        - Churn Risk: {self.safe_get(churn_risk, 'churn_probability', 0):.1%} ({self.safe_get(churn_risk, 'risk_level', 'Unknown')} risk)
+        - Anomaly Score: {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}% ({'Anomaly Detected' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal Activity'})
+        - Current Fund: {self.safe_get(fund_recommendations, 'current_fund', 'Unknown')}
+        - Recommended Funds: {', '.join(self.safe_get(fund_recommendations, 'recommendations', [])[:3])}
+        - Monte Carlo Simulations: {self.safe_get(monte_carlo, 'simulations', 0)} scenarios
+        - Probability of Meeting Target: {self.safe_get(monte_carlo, 'probability_above_target', 0):.1%}
+        - Similar Peers Found: {self.safe_get(peer_matching, 'total_peers_found', 0)}
+        - Portfolio Sharpe Ratio: {self.safe_get(portfolio_optimization, 'portfolio_metrics', {}).get('sharpe_ratio', 0):.2f}
         
         PEER COMPARISON DATA:
         - Peer Group Size: {self.safe_get(peer_stats, 'total_peers', 0)}
@@ -619,6 +652,29 @@ class SuperannuationChatRouter:
         |--------|-----|--------------|-------------|
         | Savings | ${current_savings:,.0f} | ${avg_savings:,.0f} | {current_savings/avg_savings*100 if avg_savings > 0 else 0:.0f}% |
         | Contributions | ${monthly_contrib * 12:,.0f} | ${avg_contrib:,.0f} | {(monthly_contrib * 12)/avg_contrib*100 if avg_contrib > 0 else 0:.0f}% |
+        
+        For FINANCIAL HEALTH questions, include:
+        | Health Metric | Score | Status | Peer Percentile |
+        |---------------|-------|--------|-----------------|
+        | Financial Health | {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 | {self.safe_get(financial_health, 'status', 'Unknown')} | {self.safe_get(financial_health, 'peer_percentile', 0):.0f}% |
+        | Churn Risk | {self.safe_get(churn_risk, 'churn_probability', 0):.1%} | {self.safe_get(churn_risk, 'risk_level', 'Unknown')} | - |
+        | Anomaly Score | {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}% | {'Anomaly' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal'} | - |
+        
+        For FUND RECOMMENDATION questions, include:
+        | Fund Type | Current | Recommended | Reason |
+        |-----------|---------|-------------|--------|
+        | Current Fund | {self.safe_get(fund_recommendations, 'current_fund', 'Unknown')} | - | Your current choice |
+        | Top Recommendation | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[0] if self.safe_get(fund_recommendations, 'recommendations', []) else 'None'} | {self.safe_get(fund_recommendations, 'reasoning', 'Based on similar users')} |
+        | Alternative 1 | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[1] if len(self.safe_get(fund_recommendations, 'recommendations', [])) > 1 else 'None'} | Diversification |
+        | Alternative 2 | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[2] if len(self.safe_get(fund_recommendations, 'recommendations', [])) > 2 else 'None'} | Risk optimization |
+        
+        For MONTE CARLO questions, include:
+        | Scenario | Retirement Balance | Probability |
+        |----------|-------------------|-------------|
+        | Conservative (10th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p10', 0):,.0f} | 10% |
+        | Moderate (50th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p50', 0):,.0f} | 50% |
+        | Optimistic (90th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p90', 0):,.0f} | 90% |
+        | Target Achievement | - | {self.safe_get(monte_carlo, 'probability_above_target', 0):.1%} |
         
         USER'S QUESTION: "{message}"
         

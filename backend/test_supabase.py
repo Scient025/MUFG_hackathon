@@ -7,21 +7,22 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-# Load environment variables
+# Load environment variables from project root
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 try:
-    load_dotenv()
+    load_dotenv(env_path)
 except Exception as e:
-    print(f"Warning: Could not load .env file: {e}")
+    print(f"Warning: Could not load .env file at {env_path}: {e}")
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://imtmbgbktomztqtoyuvh.supabase.co")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltdG1iZ2JrdG9tenRxdG95dXZoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzQzMzUwMSwiZXhwIjoyMDczMDA5NTAxfQ.skNHNAimBcivIo18Lm9XzEB6oi7Fz7WHP3EMmVbpRQc")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltdG1iZ2JrdG9tenRxdG95dXZoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzQzMzUwMSwiZXhwIjoyMDczMDA5NTAxfQ.skNHNAimBcivIo18Lm9XzEB6oi7Fz7WHP3EMmVbpRQc")
 
 def test_supabase_connection():
     """Test Supabase connection and database setup"""
     try:
         # Create Supabase client
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
         print("✅ Supabase client created successfully")
         
         # Test basic connection
@@ -66,7 +67,7 @@ def test_supabase_connection():
 def setup_sample_data():
     """Set up sample data in Supabase"""
     try:
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
         
         sample_data = {
             "id": "test-user-123",

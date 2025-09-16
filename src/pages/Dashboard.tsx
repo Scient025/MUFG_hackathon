@@ -84,24 +84,131 @@ export default function Dashboard() {
     
     if (isAdminMode && adminUser) {
       setCurrentUser(adminUser);
-      setSummaryStats({
-        current_savings: adminUser.Current_Savings,
-        projected_pension: adminUser.Current_Savings * 5, 
-        percent_to_goal: 20,
-        monthly_income_at_retirement: adminUser.Current_Savings * 0.04 / 12
-      });
-      setPeerComparison({
-        total_peers: 100,
-        avg_age: 35,
-        avg_income: 75000,
-        avg_savings: 25000,
-        avg_contribution: 1200
-      });
-      setProjection({
-        current_projection: adminUser.Current_Savings * 5,
-        optimistic_projection: adminUser.Current_Savings * 7,
-        pessimistic_projection: adminUser.Current_Savings * 3
-      });
+      
+      // Get real projection data from ML API for admin user
+      try {
+        const projectionResponse = await fetch(`/api/projection/${adminUser.User_ID}`);
+        const projectionData = await projectionResponse.json();
+        
+        if (projectionData.success) {
+          // Calculate monthly increase needed
+          const targetAmount = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5;
+          const currentProjection = projectionData.data.adjusted_projection || targetAmount;
+          const monthlyIncreaseNeeded = Math.max(0, (targetAmount - currentProjection) / (projectionData.data.years_to_retirement * 12));
+          
+          setProjection({
+            ...projectionData.data,
+            monthly_increase_needed: monthlyIncreaseNeeded
+          });
+          setSummaryStats({
+            current_savings: adminUser.Current_Savings,
+            projected_pension: projectionData.data.adjusted_projection || adminUser.Projected_Pension_Amount,
+            percent_to_goal: ((adminUser.Current_Savings / (projectionData.data.adjusted_projection || adminUser.Projected_Pension_Amount)) * 100),
+            monthly_income_at_retirement: projectionData.data.monthly_income_at_retirement || 0
+          });
+        } else {
+          // Fallback to mock data if API fails
+          const targetAmount = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5;
+          const monthlyIncreaseNeeded = Math.max(0, (targetAmount - adminUser.Current_Savings) / (35 * 12));
+          
+          setSummaryStats({
+            current_savings: adminUser.Current_Savings,
+            projected_pension: targetAmount,
+            percent_to_goal: 20,
+            monthly_income_at_retirement: targetAmount / 12
+          });
+          setProjection({
+            current_projection: adminUser.Current_Savings * 5,
+            adjusted_projection: targetAmount,
+            monthly_income_at_retirement: targetAmount / 12,
+            monthly_increase_needed: monthlyIncreaseNeeded
+          });
+        }
+      } catch (error) {
+        console.error('Error loading projection data for admin user:', error);
+        // Fallback to mock data
+        const targetAmount = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5;
+        const monthlyIncreaseNeeded = Math.max(0, (targetAmount - adminUser.Current_Savings) / (35 * 12));
+        
+        setSummaryStats({
+          current_savings: adminUser.Current_Savings,
+          projected_pension: targetAmount,
+          percent_to_goal: 20,
+          monthly_income_at_retirement: targetAmount / 12
+        });
+        setProjection({
+          current_projection: adminUser.Current_Savings * 5,
+          adjusted_projection: targetAmount,
+          monthly_income_at_retirement: targetAmount / 12,
+          monthly_increase_needed: monthlyIncreaseNeeded
+        });
+      }
+      
+      // Get real peer comparison data from ML API for admin user
+      try {
+        const peerResponse = await fetch(`/api/peer_stats/${adminUser.User_ID}`);
+        const peerData = await peerResponse.json();
+        
+        if (peerData.success) {
+          // Convert common_investment_types to investment_types format expected by SummaryCard
+          const investmentTypes = {};
+          const peerStats = peerData.data.peer_stats || {};
+          
+          console.log('Admin Peer data received:', peerData);
+          console.log('Admin Peer stats:', peerStats);
+          console.log('Admin Common investment types:', peerStats.common_investment_types);
+          
+          if (peerStats.common_investment_types) {
+            const totalPeers = peerStats.total_peers || 1;
+            Object.entries(peerStats.common_investment_types).forEach(([type, count]) => {
+              investmentTypes[type] = {
+                count: count,
+                percentage: Math.round((count / totalPeers) * 100)
+              };
+            });
+          }
+          
+          console.log('Admin Processed investment types:', investmentTypes);
+          
+          setPeerComparison({
+            total_peers: peerStats.total_peers || 0,
+            avg_age: peerStats.avg_age || 0,
+            avg_income: peerStats.avg_income || 0,
+            avg_savings: peerStats.avg_savings || 0,
+            avg_contribution: peerStats.avg_contribution || 0,
+            investment_types: investmentTypes
+          });
+        } else {
+          // Fallback to mock data
+          setPeerComparison({
+            total_peers: 100,
+            avg_age: 35,
+            avg_income: 75000,
+            avg_savings: 25000,
+            avg_contribution: 1200,
+            investment_types: {
+              'ETF': { count: 45, percentage: 45 },
+              'Managed Fund': { count: 30, percentage: 30 },
+              'Index Fund': { count: 25, percentage: 25 }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading peer data for admin user:', error);
+        // Fallback to mock data
+        setPeerComparison({
+          total_peers: 100,
+          avg_age: 35,
+          avg_income: 75000,
+          avg_savings: 25000,
+          avg_contribution: 1200,
+          investment_types: {
+            'ETF': { count: 45, percentage: 45 },
+            'Managed Fund': { count: 30, percentage: 30 },
+            'Index Fund': { count: 25, percentage: 25 }
+          }
+        });
+      }
       return;
     }
     
@@ -118,24 +225,131 @@ export default function Dashboard() {
         
         if (userProfile) {
           setCurrentUser(userProfile);
-          setSummaryStats({
-            current_savings: userProfile.Current_Savings,
-            projected_pension: userProfile.Current_Savings * 5, // Mock calculation
-            percent_to_goal: 20,
-            monthly_income_at_retirement: userProfile.Current_Savings * 0.04 / 12
-          });
-          setPeerComparison({
-            total_peers: 100,
-            avg_age: 35,
-            avg_income: 75000,
-            avg_savings: 25000,
-            avg_contribution: 1200
-          });
-          setProjection({
-            current_projection: userProfile.Current_Savings * 5,
-            optimistic_projection: userProfile.Current_Savings * 7,
-            pessimistic_projection: userProfile.Current_Savings * 3
-          });
+          
+          // Get real projection data from ML API
+          try {
+            const projectionResponse = await fetch(`/api/projection/${customUserId}`);
+            const projectionData = await projectionResponse.json();
+            
+            if (projectionData.success) {
+              // Calculate monthly increase needed
+              const targetAmount = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5;
+              const currentProjection = projectionData.data.adjusted_projection || targetAmount;
+              const monthlyIncreaseNeeded = Math.max(0, (targetAmount - currentProjection) / (projectionData.data.years_to_retirement * 12));
+              
+              setProjection({
+                ...projectionData.data,
+                monthly_increase_needed: monthlyIncreaseNeeded
+              });
+              setSummaryStats({
+                current_savings: userProfile.Current_Savings,
+                projected_pension: projectionData.data.adjusted_projection || userProfile.Projected_Pension_Amount,
+                percent_to_goal: ((userProfile.Current_Savings / (projectionData.data.adjusted_projection || userProfile.Projected_Pension_Amount)) * 100),
+                monthly_income_at_retirement: projectionData.data.monthly_income_at_retirement || 0
+              });
+            } else {
+              // Fallback to mock data if API fails
+              const targetAmount = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5;
+              const monthlyIncreaseNeeded = Math.max(0, (targetAmount - userProfile.Current_Savings) / (35 * 12)); // Assume 35 years to retirement
+              
+              setSummaryStats({
+                current_savings: userProfile.Current_Savings,
+                projected_pension: targetAmount,
+                percent_to_goal: 20,
+                monthly_income_at_retirement: targetAmount / 12
+              });
+              setProjection({
+                current_projection: userProfile.Current_Savings * 5,
+                adjusted_projection: targetAmount,
+                monthly_income_at_retirement: targetAmount / 12,
+                monthly_increase_needed: monthlyIncreaseNeeded
+              });
+            }
+          } catch (error) {
+            console.error('Error loading projection data:', error);
+            // Fallback to mock data
+            const targetAmount = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5;
+            const monthlyIncreaseNeeded = Math.max(0, (targetAmount - userProfile.Current_Savings) / (35 * 12));
+            
+            setSummaryStats({
+              current_savings: userProfile.Current_Savings,
+              projected_pension: targetAmount,
+              percent_to_goal: 20,
+              monthly_income_at_retirement: targetAmount / 12
+            });
+            setProjection({
+              current_projection: userProfile.Current_Savings * 5,
+              adjusted_projection: targetAmount,
+              monthly_income_at_retirement: targetAmount / 12,
+              monthly_increase_needed: monthlyIncreaseNeeded
+            });
+          }
+          
+          // Get real peer comparison data from ML API
+          try {
+            const peerResponse = await fetch(`/api/peer_stats/${customUserId}`);
+            const peerData = await peerResponse.json();
+            
+            if (peerData.success) {
+              // Convert common_investment_types to investment_types format expected by SummaryCard
+              const investmentTypes = {};
+              const peerStats = peerData.data.peer_stats || {};
+              
+              console.log('Peer data received:', peerData);
+              console.log('Peer stats:', peerStats);
+              console.log('Common investment types:', peerStats.common_investment_types);
+              
+              if (peerStats.common_investment_types) {
+                const totalPeers = peerStats.total_peers || 1;
+                Object.entries(peerStats.common_investment_types).forEach(([type, count]) => {
+                  investmentTypes[type] = {
+                    count: count,
+                    percentage: Math.round((count / totalPeers) * 100)
+                  };
+                });
+              }
+              
+              console.log('Processed investment types:', investmentTypes);
+              
+              setPeerComparison({
+                total_peers: peerStats.total_peers || 0,
+                avg_age: peerStats.avg_age || 0,
+                avg_income: peerStats.avg_income || 0,
+                avg_savings: peerStats.avg_savings || 0,
+                avg_contribution: peerStats.avg_contribution || 0,
+                investment_types: investmentTypes
+              });
+            } else {
+              // Fallback to mock data
+              setPeerComparison({
+                total_peers: 100,
+                avg_age: 35,
+                avg_income: 75000,
+                avg_savings: 25000,
+                avg_contribution: 1200,
+                investment_types: {
+                  'ETF': { count: 45, percentage: 45 },
+                  'Managed Fund': { count: 30, percentage: 30 },
+                  'Index Fund': { count: 25, percentage: 25 }
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error loading peer data:', error);
+            // Fallback to mock data
+            setPeerComparison({
+              total_peers: 100,
+              avg_age: 35,
+              avg_income: 75000,
+              avg_savings: 25000,
+              avg_contribution: 1200,
+              investment_types: {
+                'ETF': { count: 45, percentage: 45 },
+                'Managed Fund': { count: 30, percentage: 30 },
+                'Index Fund': { count: 25, percentage: 25 }
+              }
+            });
+          }
         } else {
           setError('User profile not found');
         }
