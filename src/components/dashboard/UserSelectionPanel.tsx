@@ -46,7 +46,14 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
       const result = await response.json();
       
       if (result.success) {
-        setUsers(result.data || []);
+        const mapped: BackendUser[] = (result.data || []).map((u: any) => ({
+          ...u,
+          email: u.email ?? u.username ?? null,
+          name: u.name ?? u.Name ?? null,
+          annual_income: u.annual_income ?? u.Annual_Income ?? 0,
+          current_savings: u.current_savings ?? u.Current_Savings ?? 0,
+        }));
+        setUsers(mapped);
       } else {
         setError("Failed to load users from backend");
       }

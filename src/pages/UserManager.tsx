@@ -4,18 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserSelectionPanel } from "@/components/dashboard/UserSelectionPanel";
-import { UserProfile } from "@/lib/supabase";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { ArrowLeft, User, Mail, Calendar, DollarSign, TrendingUp, Shield } from "lucide-react";
 
 export default function UserManager() {
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { loginAsUser } = useAdminAuth();
 
-  const handleUserSelect = (user: UserProfile) => {
+  const handleUserSelect = (user: any) => {
     setSelectedUser(user);
     setError(null);
   };
@@ -30,11 +29,23 @@ export default function UserManager() {
         return;
       }
       
+      // Map backend user shape to MUFG-style shape expected by admin auth/Dashboard
+      const mapped = {
+        User_ID: selectedUser.User_ID || selectedUser.id,
+        Name: selectedUser.Name || selectedUser.name || 'N/A',
+        Age: selectedUser.Age || selectedUser.age || 0,
+        Current_Savings: selectedUser.Current_Savings ?? selectedUser.current_savings ?? 0,
+        Retirement_Age_Goal: selectedUser.Retirement_Age_Goal ?? selectedUser.retirement_age_goal ?? 65,
+        Annual_Income: selectedUser.Annual_Income ?? selectedUser.annual_income ?? 0,
+        Risk_Tolerance: selectedUser.Risk_Tolerance ?? selectedUser.risk_tolerance ?? 'Medium',
+        // include other fields if needed
+      } as any;
+
       // Login as the selected user using admin auth
-      loginAsUser(selectedUser);
+      loginAsUser(mapped);
       
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Navigate to dashboard with explicit userId for loading
+      navigate('/dashboard', { state: { userId: mapped.User_ID } });
     } catch (err) {
       setError("Failed to login as user");
     } finally {

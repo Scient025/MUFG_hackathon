@@ -316,7 +316,8 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
 
     try {
       // Call the real AI API
-      const response = await dataService.sendChatMessage(user.id, currentInput);
+      const userId = (user && (user.User_ID || user.id || user.userId)) as string;
+      const response = await dataService.sendChatMessage(userId, currentInput);
       
       const botResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
