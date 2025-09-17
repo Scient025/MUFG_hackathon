@@ -496,15 +496,15 @@ class AdvancedMLModels:
             user = user_data.iloc[0]
             
             # Get actual health score
-            actual_score = user['Financial_Health_Score']
+            actual_score = float(user['Financial_Health_Score'])
             
             # Calculate peer percentile
-            peer_percentile = (self.df['Financial_Health_Score'] <= actual_score).mean() * 100
+            peer_percentile = float((self.df['Financial_Health_Score'] <= actual_score).mean() * 100)
             
             return {
                 'user_id': user_id,
-                'financial_health_score': float(actual_score),
-                'peer_percentile': float(peer_percentile),
+                'financial_health_score': actual_score,
+                'peer_percentile': peer_percentile,
                 'status': 'Above peers' if peer_percentile > 50 else 'Below peers',
                 'recommendations': self.get_health_recommendations(actual_score)
             }
@@ -541,7 +541,7 @@ class AdvancedMLModels:
             return {'error': str(e)}
     
     def detect_anomalies(self, user_id: str) -> Dict[str, Any]:
-        """Detect anomalies for a user"""
+        """Detect anomalies for a user using only Supabase-available fields"""
         try:
             user_data = self.df[self.df['User_ID'] == user_id]
             if user_data.empty:
@@ -549,26 +549,108 @@ class AdvancedMLModels:
             
             user = user_data.iloc[0]
             
-            # Features for anomaly detection
+            # Features available in Supabase for anomaly detection
             anomaly_features = [
-                'Transaction_Amount', 'Transaction_Pattern_Score', 'Anomaly_Score',
                 'Annual_Income', 'Contribution_Amount', 'Current_Savings',
-                'Portfolio_Diversity_Score', 'Savings_Rate'
+                'Portfolio_Diversity_Score', 'Savings_Rate', 'Debt_Level',
+                'Monthly_Expenses', 'Age'
             ]
             
-            X = user[anomaly_features].values.reshape(1, -1)
-            anomaly_score = self.models['anomaly_detection'].decision_function(X)[0]
-            is_anomaly = self.models['anomaly_detection'].predict(X)[0] == -1
+            # Check if all required features are available
+            available_features = []
+            feature_values = []
+            for feature in anomaly_features:
+                if feature in user and pd.notna(user[feature]):
+                    available_features.append(feature)
+                    feature_values.append(user[feature])
+            
+            if len(available_features) < 3:
+                # Not enough data for anomaly detection
+                return {
+                    'user_id': user_id,
+                    'anomaly_score': 0.0,
+                    'is_anomaly': False,
+                    'anomaly_percentage': 0.0,
+                    'recommendations': ['Insufficient data for anomaly detection']
+                }
+            
+            # Use available features for anomaly detection
+            X = np.array(feature_values).reshape(1, -1)
+            
+            # Simple anomaly detection based on statistical thresholds
+            anomaly_score = self.calculate_simple_anomaly_score(user)
+            is_anomaly = anomaly_score > 0.7  # Threshold for anomaly
             
             return {
                 'user_id': user_id,
                 'anomaly_score': float(anomaly_score),
                 'is_anomaly': bool(is_anomaly),
-                'anomaly_percentage': float(max(0, min(100, (anomaly_score + 1) * 50))),
+                'anomaly_percentage': float(anomaly_score * 100),
                 'recommendations': self.get_anomaly_recommendations(is_anomaly)
             }
         except Exception as e:
             return {'error': str(e)}
+    
+    def calculate_simple_anomaly_score(self, user) -> float:
+        """Calculate a simple anomaly score based on available Supabase fields"""
+        try:
+            score = 0.0
+            
+            # Convert all values to proper numeric types
+            income = float(user.get('Annual_Income', 0))
+            savings = float(user.get('Current_Savings', 0))
+            contribution = float(user.get('Contribution_Amount', 0))
+            age = float(user.get('Age', 30))
+            diversity = float(user.get('Portfolio_Diversity_Score', 0.5))
+            
+            # Income vs Savings ratio anomaly
+            if income > 0:
+                savings_ratio = savings / income
+                if savings_ratio > 3.0:  # Very high savings ratio
+                    score += 0.3
+                elif savings_ratio < 0.1:  # Very low savings ratio
+                    score += 0.4
+            
+            # Contribution vs Income ratio anomaly
+            if income > 0:
+                contrib_ratio = contribution / income
+                if contrib_ratio > 0.2:  # Very high contribution ratio
+                    score += 0.2
+                elif contrib_ratio < 0.02:  # Very low contribution ratio
+                    score += 0.3
+            
+            # Debt level anomaly - handle categorical debt levels
+            debt_level = user.get('Debt_Level', 'Low')
+            if isinstance(debt_level, str):
+                # Convert categorical debt level to numeric multiplier
+                debt_multipliers = {'Low': 0.1, 'Medium': 0.3, 'High': 0.5, 'Unknown': 0.2}
+                debt_multiplier = debt_multipliers.get(debt_level, 0.2)
+                debt_amount = income * debt_multiplier
+            else:
+                # If it's already numeric, use it directly
+                debt_amount = float(debt_level)
+            
+            if debt_amount > income * 2:  # Debt more than 2x income
+                score += 0.4
+            elif debt_amount > income:  # Debt more than income
+                score += 0.2
+            
+            # Age vs Savings anomaly
+            if age > 0:
+                expected_savings = income * (age - 20) * 0.1  # Rough expectation
+                if savings < expected_savings * 0.1:  # Very low savings for age
+                    score += 0.3
+            
+            # Portfolio diversity anomaly
+            if diversity < 0.2:  # Very low diversity
+                score += 0.2
+            elif diversity > 0.95:  # Very high diversity (might be suspicious)
+                score += 0.1
+            
+            return min(1.0, score)  # Cap at 1.0
+        except Exception as e:
+            print(f"Error calculating anomaly score: {e}")
+            return 0.0
     
     def recommend_funds(self, user_id: str, n_recommendations: int = 5) -> Dict[str, Any]:
         """Recommend funds for a user"""
@@ -666,11 +748,11 @@ class AdvancedMLModels:
             
             # Calculate percentiles
             percentiles = {
-                'p10': np.percentile(final_balances, 10),
-                'p25': np.percentile(final_balances, 25),
-                'p50': np.percentile(final_balances, 50),
-                'p75': np.percentile(final_balances, 75),
-                'p90': np.percentile(final_balances, 90)
+                'p10': float(np.percentile(final_balances, 10)),
+                'p25': float(np.percentile(final_balances, 25)),
+                'p50': float(np.percentile(final_balances, 50)),
+                'p75': float(np.percentile(final_balances, 75)),
+                'p90': float(np.percentile(final_balances, 90))
             }
             
             return {

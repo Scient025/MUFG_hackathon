@@ -268,13 +268,13 @@ export default function Admin() {
                   <SelectTrigger className="h-12">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="high_income">High Income (≥$100k)</SelectItem>
-                    <SelectItem value="high_savings">High Savings (≥$50k)</SelectItem>
-                    <SelectItem value="high_risk">High Risk Tolerance</SelectItem>
-                    <SelectItem value="married">Married</SelectItem>
-                    <SelectItem value="with_dependents">With Dependents</SelectItem>
+                  <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                    <SelectItem value="all" className="hover:bg-gray-100">All Users</SelectItem>
+                    <SelectItem value="high_income" className="hover:bg-gray-100">High Income (≥$100k)</SelectItem>
+                    <SelectItem value="high_savings" className="hover:bg-gray-100">High Savings (≥$50k)</SelectItem>
+                    <SelectItem value="high_risk" className="hover:bg-gray-100">High Risk Tolerance</SelectItem>
+                    <SelectItem value="married" className="hover:bg-gray-100">Married</SelectItem>
+                    <SelectItem value="with_dependents" className="hover:bg-gray-100">With Dependents</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

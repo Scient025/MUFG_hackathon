@@ -35,12 +35,12 @@ class IntegratedMLPipeline:
                 'user_id': user_id,
                 'user_profile': {
                     'name': user.get('Name', 'Unknown'),
-                    'age': int(user['Age']),
-                    'annual_income': float(user['Annual_Income']),
-                    'current_savings': float(user['Current_Savings']),
+                    'age': int(user['Age']) if user['Age'] is not None else 0,
+                    'annual_income': float(user['Annual_Income']) if user['Annual_Income'] is not None else 0.0,
+                    'current_savings': float(user['Current_Savings']) if user['Current_Savings'] is not None else 0.0,
                     'risk_tolerance': user['Risk_Tolerance'],
                     'fund_name': user['Fund_Name'],
-                    'contribution_amount': float(user['Contribution_Amount'])
+                    'contribution_amount': float(user['Contribution_Amount']) if user['Contribution_Amount'] is not None else 0.0
                 },
                 'financial_health': financial_health,
                 'churn_risk': churn_risk,

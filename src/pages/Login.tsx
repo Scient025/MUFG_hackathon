@@ -105,19 +105,19 @@ export default function Landing() {
 
   const features = [
     {
-      icon: <Calculator className="h-8 w-8 text-blue-600" />,
+      icon: <Calculator className="h-6 w-6 text-blue-600" />,
       title: "Smart Calculations",
-      description: "Get accurate projections of your superannuation balance and retirement income with our advanced calculators."
+      description: "Get accurate projections and retirement income calculations."
     },
     {
-      icon: <Award className="h-8 w-8 text-green-600" />,
+      icon: <Award className="h-6 w-6 text-green-600" />,
       title: "Expert Guidance",
-      description: "Access professional advice tailored to your unique financial situation and retirement goals."
+      description: "Access professional advice tailored to your situation."
     },
     {
-      icon: <Target className="h-8 w-8 text-purple-600" />,
+      icon: <Target className="h-6 w-6 text-purple-600" />,
       title: "Goal Planning",
-      description: "Set and track your retirement goals with personalized strategies to maximize your super savings."
+      description: "Set and track your retirement goals effectively."
     }
   ];
 
@@ -130,26 +130,22 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14">
             <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">SuperWise</span>
+              <Shield className="h-7 w-7 text-blue-600" />
+              <span className="ml-2 text-lg font-bold text-gray-900">SuperWise</span>
             </div>
-            <nav className="hidden md:flex space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-blue-600">Features</a>
-              <a href="#how-it-works" className="text-gray-600 hover:text-blue-600">How It Works</a>
-              <a href="#testimonials" className="text-gray-600 hover:text-blue-600">Testimonials</a>
-              <a href="#contact" className="text-gray-600 hover:text-blue-600">Contact</a>
-            </nav>
-            <div className="flex items-center space-x-4">
-              <Link to="/signup" className="hidden md:inline-block text-gray-700 hover:text-blue-600">
-                Sign Up
-              </Link>
-              <Button variant="outline" onClick={() => window.location.href = '/admin'} className="hidden md:flex items-center">
+            <div className="flex items-center space-x-3">
+              <Button variant="outline" asChild className="text-sm px-4 py-2 h-9">
+                <Link to="/signup">
+                  Sign Up
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={() => window.location.href = '/admin'} className="flex items-center text-sm px-4 py-2 h-9">
                 <Shield className="h-4 w-4 mr-2" />
                 Admin
               </Button>
@@ -159,64 +155,64 @@ export default function Landing() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
           {/* Left Column - Hero Text */}
-          <div className="flex flex-col justify-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-6">
+          <div className="flex flex-col justify-center space-y-4">
+            <h1 className="text-3xl font-bold text-gray-900">
               Take Control of Your <span className="text-blue-600">Financial Future</span>
             </h1>
-            <p className="text-lg text-gray-600 mb-8">
+            <p className="text-base text-gray-600">
               SuperWise helps you plan for retirement with confidence. Our AI-powered platform provides personalized advice to help you make the most of your superannuation.
             </p>
             
-            <div className="space-y-6 mb-8">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 bg-blue-100 p-2 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-blue-600" />
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 bg-blue-100 p-1.5 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Smart Projections</h3>
-                  <p className="text-gray-600">Get accurate retirement projections based on your unique financial situation.</p>
+                  <h3 className="font-semibold text-gray-900 text-sm">Smart Projections</h3>
+                  <p className="text-gray-600 text-sm">Get accurate retirement projections based on your unique financial situation.</p>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 bg-green-100 p-2 rounded-lg">
-                  <Shield className="h-6 w-6 text-green-600" />
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 bg-green-100 p-1.5 rounded-lg">
+                  <Shield className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Risk Analysis</h3>
-                  <p className="text-gray-600">Understand your risk tolerance and optimize your investment strategy.</p>
+                  <h3 className="font-semibold text-gray-900 text-sm">Risk Analysis</h3>
+                  <p className="text-gray-600 text-sm">Understand your risk tolerance and optimize your investment strategy.</p>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 bg-purple-100 p-2 rounded-lg">
-                  <Users className="h-6 w-6 text-purple-600" />
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 bg-purple-100 p-1.5 rounded-lg">
+                  <Users className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Peer Comparison</h3>
-                  <p className="text-gray-600">See how your retirement savings compare to others in your demographic.</p>
+                  <h3 className="font-semibold text-gray-900 text-sm">Peer Comparison</h3>
+                  <p className="text-gray-600 text-sm">See how your retirement savings compare to others in your demographic.</p>
                 </div>
               </div>
             </div>
 
             {/* Feature Cards */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">What We Provide</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-gray-900">What We Provide</h2>
+              <div className="grid grid-cols-3 gap-3">
                 {features.map((feature, index) => (
                   <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white/80">
-                    <CardContent className="p-4 text-center">
-                      <div className="flex flex-col items-center space-y-2">
-                        <div className="bg-gray-50 p-3 rounded-lg">
+                    <CardContent className="p-3 text-center">
+                      <div className="flex flex-col items-center space-y-1">
+                        <div className="bg-gray-50 p-2 rounded-lg">
                           {feature.icon}
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900">
+                        <h3 className="text-xs font-semibold text-gray-900">
                           {feature.title}
                         </h3>
-                        <p className="text-xs text-gray-800 leading-relaxed">
+                        <p className="text-xs text-gray-600 leading-tight">
                           {feature.description}
                         </p>
                       </div>
@@ -228,92 +224,100 @@ export default function Landing() {
           </div>
           
           {/* Right Column - Login Form */}
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-              <p className="text-gray-600">Sign in to your account</p>
-            </div>
-            
-            {error && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="username">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    id="username"
-                    name="username"
-                    type="email"
-                    placeholder="Enter your email"
-                    className="pl-10"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    disabled={loading}
-                  />
+          <div className="flex items-center justify-center">
+            <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
+                  <p className="text-gray-600">Sign in to your SuperWise account</p>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    className="pl-10 pr-10"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    tabIndex={-1}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
+                
+                {error && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-              </Button>
-            </form>
-            
-            <div className="mt-6 text-center text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-blue-600 hover:underline">
-                Sign up
-              </Link>
-            </div>
+                
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        id="username"
+                        name="username"
+                        type="email"
+                        placeholder="Enter your email"
+                        className="pl-10 h-12"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        className="pl-10 pr-12 h-12"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required
+                        disabled={loading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-12 px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                        tabIndex={-1}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Button type="submit" className="w-full h-12" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </form>
+                
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-gray-600">
+                    Don't have an account?{' '}
+                    <Link to="/signup" className="text-blue-600 hover:underline">
+                      Sign up
+                    </Link>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>

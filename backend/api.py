@@ -2,6 +2,7 @@ import asyncio
 import os
 from typing import Any, Dict, Optional
 
+import numpy as np
 import uvicorn
 from azure_speech import STTRequest, TTSRequest, VoiceListResponse, azure_speech_service
 from chat_router import SuperannuationChatRouter
@@ -192,6 +193,22 @@ async def simulate_scenario(request: SimulationRequest):
         projection = inference_engine.predict_pension_projection(
             request.user_id, request.extra_monthly
         )
+        
+        # Ensure all numeric values are native Python types for JSON serialization
+        def convert_numpy_types(obj):
+            if isinstance(obj, dict):
+                return {k: convert_numpy_types(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy_types(item) for item in obj]
+            elif hasattr(obj, 'item'):  # NumPy scalar
+                return obj.item()
+            elif isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            else:
+                return obj
+        
+        projection = convert_numpy_types(projection)
+        
         print(f"Projection successful: {projection}")
         return {"success": True, "data": projection}
     except ValueError as e:
@@ -253,12 +270,48 @@ async def get_pension_projection(user_id: str):
     """Get pension projection"""
     try:
         projection = inference_engine.predict_pension_projection(user_id)
+        
+        # Ensure all numeric values are native Python types for JSON serialization
+        def convert_numpy_types(obj):
+            if isinstance(obj, dict):
+                return {k: convert_numpy_types(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy_types(item) for item in obj]
+            elif hasattr(obj, 'item'):  # NumPy scalar
+                return obj.item()
+            elif isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            else:
+                return obj
+        
+        projection = convert_numpy_types(projection)
+        
         return {"success": True, "data": projection}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error getting projection: {str(e)}"
+        )
+
+
+@app.get("/advanced_analysis/{user_id}")
+async def get_advanced_analysis(user_id: str):
+    """Get comprehensive advanced ML analysis for a user"""
+    try:
+        from integrated_ml_pipeline import IntegratedMLPipeline
+        ml_pipeline = IntegratedMLPipeline()
+        analysis = ml_pipeline.get_comprehensive_user_analysis(user_id)
+        
+        if 'error' in analysis:
+            raise ValueError(analysis['error'])
+            
+        return {"success": True, "data": analysis}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting advanced analysis: {str(e)}"
         )
 
 

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Plus, Target, Calendar, DollarSign, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -15,6 +15,7 @@ interface Goal {
   currentAmount: number;
   priority: 'High' | 'Medium' | 'Low';
   type: 'Short-term' | 'Long-term';
+  category: 'Retirement' | 'Non-retirement';
 }
 
 interface GoalsPageProps {
@@ -32,31 +33,13 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
       targetDate: '2031-12-31',
       currentAmount: user.Current_Savings || 0,
       priority: 'High',
-      type: 'Long-term'
-    },
-    {
-      id: '2',
-      title: 'Emergency Health Fund',
-      description: 'Medical expenses and health insurance',
-      targetAmount: 50000,
-      targetDate: '2025-12-31',
-      currentAmount: 50000,
-      priority: 'High',
-      type: 'Short-term'
-    },
-    {
-      id: '3',
-      title: 'Travel Fund (Europe Trip)',
-      description: 'Dream vacation to Europe',
-      targetAmount: 25000,
-      targetDate: '2026-06-30',
-      currentAmount: 11250,
-      priority: 'Medium',
-      type: 'Short-term'
+      type: 'Long-term',
+      category: 'Retirement'
     }
   ]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [newGoal, setNewGoal] = useState<Partial<Goal>>({
     title: '',
     description: '',
@@ -64,7 +47,8 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
     targetDate: '',
     currentAmount: 0,
     priority: 'Medium',
-    type: 'Short-term'
+    type: 'Short-term',
+    category: 'Non-retirement'
   });
 
   const formatCurrency = (amount: number) => {
@@ -85,15 +69,54 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
     }
   };
 
+  const getCategoryColor = (category: string) => {
+    return category === 'Retirement' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-orange-100 text-orange-800 border-orange-200';
+  };
+
   const getTypeColor = (type: string) => {
     return type === 'Long-term' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200';
   };
+
+  const calculateRetirementProgress = () => {
+    const currentSavings = user.Current_Savings || 0;
+    const retirementTarget = user.Projected_Pension_Amount || 0;
+    
+    // Calculate non-retirement commitments
+    const nonRetirementCommitments = goals
+      .filter(g => g.category === 'Non-retirement')
+      .reduce((sum, goal) => sum + (goal.targetAmount - goal.currentAmount), 0);
+    
+    // Calculate available funds for retirement after non-retirement commitments
+    const availableForRetirement = Math.max(0, currentSavings - nonRetirementCommitments);
+    
+    // Calculate progress based on available funds vs retirement target
+    const progress = retirementTarget > 0 ? (availableForRetirement / retirementTarget) * 100 : 0;
+    
+    return {
+      progress: Math.round(Math.max(0, progress)),
+      availableForRetirement,
+      nonRetirementCommitments,
+      retirementTarget
+    };
+  };
+
+  const retirementProgress = calculateRetirementProgress();
 
   const calculateProgress = (current: number, target: number) => {
     return Math.min(Math.round((current / target) * 100), 100);
   };
 
   const addGoal = () => {
+    console.log('addGoal called with newGoal:', newGoal);
+    console.log('Validation check:', {
+      hasTitle: !!newGoal.title,
+      hasTargetAmount: !!newGoal.targetAmount,
+      hasTargetDate: !!newGoal.targetDate
+    });
+    
+    // Clear previous validation error
+    setValidationError(null);
+    
     if (newGoal.title && newGoal.targetAmount && newGoal.targetDate) {
       const goal: Goal = {
         id: Date.now().toString(),
@@ -103,8 +126,11 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
         targetDate: newGoal.targetDate,
         currentAmount: newGoal.currentAmount || 0,
         priority: newGoal.priority || 'Medium',
-        type: newGoal.type || 'Short-term'
+        type: newGoal.type || 'Short-term',
+        category: newGoal.category || 'Non-retirement'
       };
+      
+      console.log('Creating goal:', goal);
       
       const updatedGoals = [...goals, goal];
       setGoals(updatedGoals);
@@ -117,9 +143,14 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
         targetDate: '',
         currentAmount: 0,
         priority: 'Medium',
-        type: 'Short-term'
+        type: 'Short-term',
+        category: 'Non-retirement'
       });
       setIsDialogOpen(false);
+      console.log('Goal added successfully');
+    } else {
+      console.log('Validation failed - missing required fields');
+      setValidationError('Please fill in all required fields: Title, Target Amount, and Target Date');
     }
   };
 
@@ -167,7 +198,12 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
             </div>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (open) {
+              setValidationError(null); // Clear validation error when opening dialog
+            }
+          }}>
             <DialogTrigger asChild>
               <Button className="w-full h-12 text-lg font-semibold">
                 <Plus className="w-5 h-5 mr-2" />
@@ -177,6 +213,9 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl">Add New Financial Goal</DialogTitle>
+                <DialogDescription>
+                  Create a new financial goal to track your progress and stay motivated.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -243,18 +282,37 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <label className="text-lg font-medium mb-2 block">Goal Type</label>
-                  <select
-                    value={newGoal.type}
-                    onChange={(e) => setNewGoal({ ...newGoal, type: e.target.value as any })}
-                    className="w-full h-12 px-3 border border-input rounded-md text-lg"
-                    aria-label="Select goal type"
-                  >
-                    <option value="Short-term">Short-term (1-3 years)</option>
-                    <option value="Long-term">Long-term (5+ years)</option>
-                  </select>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-lg font-medium mb-2 block">Goal Type</label>
+                    <select
+                      value={newGoal.type}
+                      onChange={(e) => setNewGoal({ ...newGoal, type: e.target.value as any })}
+                      className="w-full h-12 px-3 border border-input rounded-md text-lg"
+                      aria-label="Select goal type"
+                    >
+                      <option value="Short-term">Short-term (1-3 years)</option>
+                      <option value="Long-term">Long-term (5+ years)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-lg font-medium mb-2 block">Category</label>
+                    <select
+                      value={newGoal.category}
+                      onChange={(e) => setNewGoal({ ...newGoal, category: e.target.value as any })}
+                      className="w-full h-12 px-3 border border-input rounded-md text-lg"
+                      aria-label="Select goal category"
+                    >
+                      <option value="Non-retirement">Non-retirement Goal</option>
+                      <option value="Retirement">Retirement Goal</option>
+                    </select>
+                  </div>
                 </div>
+                {validationError && (
+                  <div className="bg-red-100 border border-red-300 rounded-lg p-3">
+                    <div className="text-red-800 text-sm font-medium">{validationError}</div>
+                  </div>
+                )}
                 <Button onClick={addGoal} className="w-full h-12 text-lg font-semibold">
                   Add Goal
                 </Button>
@@ -333,6 +391,9 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
                     <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getTypeColor(goal.type)}`}>
                       {goal.type}
                     </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(goal.category)}`}>
+                      {goal.category}
+                    </div>
                   </div>
                   
                   {!isCompleted && (
@@ -379,18 +440,44 @@ export function GoalsPage({ user, onGoalChange }: GoalsPageProps) {
             <h4 className="text-lg font-semibold mb-3">How your goals affect retirement projections:</h4>
             <div className="space-y-3 text-lg">
               <div className="flex justify-between">
-                <span>Total goal commitments:</span>
-                <span className="font-semibold">{formatCurrency(goals.reduce((sum, goal) => sum + goal.targetAmount, 0))}</span>
+                <span>Non-retirement goal commitments:</span>
+                <span className="font-semibold">{formatCurrency(retirementProgress.nonRetirementCommitments)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Remaining for retirement:</span>
-                <span className="font-semibold">{formatCurrency(user.Projected_Pension_Amount - goals.reduce((sum, goal) => sum + goal.targetAmount, 0))}</span>
+                <span>Retirement target amount:</span>
+                <span className="font-semibold">{formatCurrency(retirementProgress.retirementTarget)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Current retirement savings:</span>
+                <span className="font-semibold">{formatCurrency(user.Current_Savings || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Available for retirement:</span>
+                <span className="font-semibold">{formatCurrency(retirementProgress.availableForRetirement)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Retirement goal progress:</span>
-                <span className="font-semibold text-primary">
-                  {Math.round((user.Current_Savings / user.Projected_Pension_Amount) * 100)}%
+                <span className={`font-semibold ${retirementProgress.progress >= 100 ? 'text-green-600' : retirementProgress.progress >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {retirementProgress.progress}%
                 </span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mt-4">
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      retirementProgress.progress >= 100 ? 'bg-green-500' : 
+                      retirementProgress.progress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.min(retirementProgress.progress, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-sm text-muted-foreground mt-2">
+                  {retirementProgress.progress >= 100 ? '🎉 Retirement goal achieved!' : 
+                   retirementProgress.progress >= 50 ? '📈 Good progress on retirement savings' : 
+                   '⚠️ Consider reducing non-retirement commitments to improve retirement progress'}
+                </div>
               </div>
             </div>
           </div>

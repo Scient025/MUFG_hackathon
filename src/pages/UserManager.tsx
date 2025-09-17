@@ -38,7 +38,18 @@ export default function UserManager() {
         Retirement_Age_Goal: selectedUser.Retirement_Age_Goal ?? selectedUser.retirement_age_goal ?? 65,
         Annual_Income: selectedUser.Annual_Income ?? selectedUser.annual_income ?? 0,
         Risk_Tolerance: selectedUser.Risk_Tolerance ?? selectedUser.risk_tolerance ?? 'Medium',
-        // include other fields if needed
+        Employer_Contribution: selectedUser.Employer_Contribution ?? selectedUser.employer_contribution ?? 0,
+        Contribution_Amount: selectedUser.Contribution_Amount ?? selectedUser.contribution_amount ?? 0,
+        Contribution_Frequency: selectedUser.Contribution_Frequency ?? selectedUser.contribution_frequency ?? 'Monthly',
+        Total_Annual_Contribution: selectedUser.Total_Annual_Contribution ?? selectedUser.total_annual_contribution ?? 0,
+        Projected_Pension_Amount: selectedUser.Projected_Pension_Amount ?? selectedUser.projected_pension_amount ?? 0,
+        Anomaly_Score: selectedUser.Anomaly_Score ?? selectedUser.anomaly_score ?? 0,
+        Years_Contributed: selectedUser.Years_Contributed ?? selectedUser.years_contributed ?? 0,
+        Employment_Status: selectedUser.Employment_Status ?? selectedUser.employment_status ?? 'Unknown',
+        Investment_Experience_Level: selectedUser.Investment_Experience_Level ?? selectedUser.investment_experience_level ?? 'Beginner',
+        Debt_Level: selectedUser.Debt_Level ?? selectedUser.debt_level ?? 0,
+        // Include all other fields from the original user data
+        ...selectedUser
       } as any;
 
       // Login as the selected user using admin auth

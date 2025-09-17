@@ -428,12 +428,12 @@ class SuperannuationInference:
             
             result = {
                 'user_id': user_id,
-                'current_projection': float(user.get('Projected_Pension_Amount', 0)),
+                'current_projection': float(user.get('Projected_Pension_Amount', 0)) if user.get('Projected_Pension_Amount', 0) is not None else 0.0,
                 'adjusted_projection': float(projected_pension),
                 'extra_monthly_contribution': extra_monthly,
                 'years_to_retirement': years_to_retirement,
                 'monthly_income_at_retirement': float(monthly_income),
-                'improvement': float(projected_pension - user.get('Projected_Pension_Amount', 0))
+                'improvement': float(projected_pension - (user.get('Projected_Pension_Amount', 0) if user.get('Projected_Pension_Amount', 0) is not None else 0))
             }
             print(f"Result: {result}")
             return result
@@ -453,12 +453,12 @@ class SuperannuationInference:
         
         return {
             'user_id': user_id,
-            'current_savings': float(current_savings),
-            'projected_pension': float(goal_amount),
+            'current_savings': float(current_savings) if current_savings is not None else 0.0,
+            'projected_pension': float(goal_amount) if goal_amount is not None else 0.0,
             'percent_to_goal': float(percent_to_goal),
-            'monthly_income_at_retirement': float(user.get('Expected_Annual_Payout', 0) / 12),
-            'employer_contribution': float(user.get('Employer_Contribution', 0)),
-            'total_annual_contribution': float(user.get('Total_Annual_Contribution', 0)),
+            'monthly_income_at_retirement': float(user.get('Expected_Annual_Payout', 0) / 12) if user.get('Expected_Annual_Payout', 0) is not None else 0.0,
+            'employer_contribution': float(user.get('Employer_Contribution', 0)) if user.get('Employer_Contribution', 0) is not None else 0.0,
+            'total_annual_contribution': float(user.get('Total_Annual_Contribution', 0)) if user.get('Total_Annual_Contribution', 0) is not None else 0.0,
             'risk_tolerance': user.get('Risk_Tolerance', 'Unknown'),
             'investment_type': user.get('Investment_Type', 'Unknown'),
             'fund_name': user.get('Fund_Name', 'Unknown')

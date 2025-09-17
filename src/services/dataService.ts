@@ -19,7 +19,7 @@ export interface SignupData {
   contribution_amount: number;
   contribution_frequency: string;
   employer_contribution: number;
-  years_contributed?: number;
+  years_contributed: number;
   investment_type: string;
   fund_name: string;
   marital_status: string;
@@ -32,6 +32,15 @@ export interface SignupData {
   insurance_coverage: string;
   pension_type: string;
   withdrawal_strategy: string;
+  // Additional fields used by ML models
+  debt_level: string;
+  savings_rate: number;
+  portfolio_diversity_score: number;
+  monthly_expenses: number;
+  transaction_amount: number;
+  transaction_pattern_score: number;
+  anomaly_score: number;
+  suspicious_flag: string;
 }
 
 // Login interface
@@ -268,7 +277,7 @@ export const dataService = {
           "Contribution_Amount": signupData.contribution_amount,
           "Contribution_Frequency": signupData.contribution_frequency,
           "Employer_Contribution": signupData.employer_contribution,
-          "Years_Contributed": signupData.years_contributed || 0,
+          "Years_Contributed": signupData.years_contributed,
           "Investment_Type": signupData.investment_type,
           "Fund_Name": signupData.fund_name,
           "Marital_Status": signupData.marital_status,
@@ -282,30 +291,35 @@ export const dataService = {
           "Pension_Type": signupData.pension_type,
           "Withdrawal_Strategy": signupData.withdrawal_strategy,
           "Password": signupData.password,
+          // Additional fields used by ML models
+          "Debt_Level": signupData.debt_level,
+          "Savings_Rate": signupData.savings_rate,
+          "Portfolio_Diversity_Score": signupData.portfolio_diversity_score,
+          "Monthly_Expenses": signupData.monthly_expenses,
+          "Transaction_Amount": signupData.transaction_amount,
+          "Transaction_Pattern_Score": signupData.transaction_pattern_score,
+          "Anomaly_Score": signupData.anomaly_score,
+          "Suspicious_Flag": signupData.suspicious_flag,
           
-          // Fields not collected in signup - set to null
-          "Total_Annual_Contribution": null,
-          "Annual_Return_Rate": null,
-          "Volatility": null,
-          "Fees_Percentage": null,
-          "Projected_Pension_Amount": null,
-          "Expected_Annual_Payout": null,
-          "Inflation_Adjusted_Payout": null,
-          "Years_of_Payout": null,
-          "Survivor_Benefits": null,
+          // Fields not collected in signup - set to median/default values from CSV
+          "Total_Annual_Contribution": (signupData.contribution_amount + signupData.employer_contribution) * 12,
+          "Annual_Return_Rate": signupData.risk_tolerance === 'High' ? 8.5 : signupData.risk_tolerance === 'Low' ? 5.5 : 7.0, // Based on risk tolerance
+          "Volatility": signupData.risk_tolerance === 'High' ? 3.5 : signupData.risk_tolerance === 'Low' ? 1.5 : 2.5,
+          "Fees_Percentage": 0.8, // Median from CSV
+          "Projected_Pension_Amount": null, // Will be calculated by ML model
+          "Expected_Annual_Payout": null, // Will be calculated by ML model
+          "Inflation_Adjusted_Payout": null, // Will be calculated by ML model
+          "Years_of_Payout": 25, // Default retirement duration
+          "Survivor_Benefits": "Yes", // Most common from CSV
           "Transaction_ID": null,
           "Transaction_Amount": null,
           "Transaction_Date": null,
           "Suspicious_Flag": null,
           "Anomaly_Score": null,
-          "Life_Expectancy_Estimate": null,
-          "Debt_Level": null,
-          "Monthly_Expenses": null,
-          "Savings_Rate": null,
-          "Portfolio_Diversity_Score": null,
-          "Tax_Benefits_Eligibility": null,
-          "Government_Pension_Eligibility": null,
-          "Private_Pension_Eligibility": null,
+          "Life_Expectancy_Estimate": 85, // Median from CSV
+          "Tax_Benefits_Eligibility": "Yes", // Most common from CSV
+          "Government_Pension_Eligibility": "Yes", // Most common from CSV
+          "Private_Pension_Eligibility": "No", // Most common from CSV
           "Transaction_Channel": null,
           "IP_Address": null,
           "Device_ID": null,

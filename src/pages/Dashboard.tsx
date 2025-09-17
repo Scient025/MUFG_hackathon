@@ -16,9 +16,9 @@ import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { SupabaseService } from "@/services/supabaseService";
 
 import { LogOut, User, ArrowLeft } from "lucide-react";
-import { AdminDebug } from "@/components/debug/AdminDebug";
 
 export default function Dashboard() {
+  console.log('Dashboard component rendering...');
   const { user, loading: authLoading, signOut } = useAuth();
   const { adminUser, isAdminMode, logout: adminLogout } = useAdminAuth();
   const navigate = useNavigate();
@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [advancedMetrics, setAdvancedMetrics] = useState<any>(null);
 
   const initRef = useRef(false);
   useEffect(() => {
@@ -71,6 +72,155 @@ export default function Dashboard() {
     setInitializing(false);
   }, []);
 
+  const loadAdvancedMetrics = async (userId: string) => {
+    try {
+      console.log('Loading advanced metrics for userId:', userId);
+      const response = await fetch(`/api/advanced_analysis/${userId}`);
+      console.log('Advanced metrics response status:', response.status);
+      const data = await response.json();
+      console.log('Advanced metrics API response:', data);
+      
+      if (data.success) {
+        const analysis = data.data;
+        console.log('Analysis data:', analysis);
+        const metrics = {
+          financial_health_score: analysis.financial_health?.financial_health_score || 0,
+          churn_risk_percentage: (analysis.churn_risk?.churn_probability || 0) * 100,
+          anomaly_score: analysis.anomaly_detection?.anomaly_percentage || 0
+        };
+        console.log('Setting advanced metrics:', metrics);
+        setAdvancedMetrics(metrics);
+      } else {
+        console.log('Advanced metrics API failed, using fallback calculations');
+        // Fallback calculations based on user data
+        const user = currentUser;
+        if (user) {
+          const healthScore = calculateFinancialHealthScore(user);
+          const churnRisk = calculateChurnRisk(user);
+          // Anomaly score is not available in Supabase - only from ML API
+          const anomalyScore = 0; // Default to 0 if ML API fails
+          
+          console.log('Fallback calculations:', { healthScore, churnRisk, anomalyScore });
+          setAdvancedMetrics({
+            financial_health_score: healthScore,
+            churn_risk_percentage: churnRisk,
+            anomaly_score: anomalyScore
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading advanced metrics:', error);
+      // Fallback calculations
+      const user = currentUser;
+      if (user) {
+        const healthScore = calculateFinancialHealthScore(user);
+        const churnRisk = calculateChurnRisk(user);
+        // Anomaly score is not available in Supabase - only from ML API
+        const anomalyScore = 0; // Default to 0 if ML API fails
+        
+        console.log('Error fallback calculations:', { healthScore, churnRisk, anomalyScore });
+        setAdvancedMetrics({
+          financial_health_score: healthScore,
+          churn_risk_percentage: churnRisk,
+          anomaly_score: anomalyScore
+        });
+      }
+    }
+  };
+
+  const calculateFinancialHealthScore = (user: any) => {
+    let score = 0;
+    
+    console.log('Calculating financial health score for user:', user);
+    
+    // Income component (20 points)
+    const income = user.Annual_Income || 0;
+    console.log('User income:', income);
+    if (income > 100000) score += 20;
+    else if (income > 75000) score += 15;
+    else if (income > 50000) score += 10;
+    else score += 5;
+    
+    // Savings component (25 points)
+    const savingsRatio = (user.Current_Savings || 0) / (income || 1);
+    if (savingsRatio > 2.0) score += 25;
+    else if (savingsRatio > 1.0) score += 20;
+    else if (savingsRatio > 0.5) score += 15;
+    else if (savingsRatio > 0.2) score += 10;
+    else score += 5;
+    
+    // Contribution component (20 points)
+    const contribRatio = (user.Contribution_Amount || 0) / (income || 1);
+    if (contribRatio > 0.15) score += 20;
+    else if (contribRatio > 0.10) score += 15;
+    else if (contribRatio > 0.05) score += 10;
+    else score += 5;
+    
+    // Debt component (15 points) - simplified
+    const debtLevel = user.Debt_Level || 0;
+    if (debtLevel < 20000) score += 15;
+    else if (debtLevel < 50000) score += 10;
+    else if (debtLevel < 100000) score += 5;
+    
+    // Age component (10 points)
+    const age = user.Age || 0;
+    if (age >= 25 && age <= 35) score += 10;
+    else if (age >= 36 && age <= 45) score += 8;
+    else if (age >= 46 && age <= 55) score += 6;
+    else score += 4;
+    
+    // Investment experience (10 points)
+    const expLevel = user.Investment_Experience_Level || 'Beginner';
+    if (expLevel === 'Expert') score += 10;
+    else if (expLevel === 'Intermediate') score += 7;
+    else score += 4;
+    
+    const finalScore = Math.min(100, Math.max(0, score));
+    console.log('Final financial health score:', finalScore);
+    return finalScore;
+  };
+
+  const calculateChurnRisk = (user: any) => {
+    let risk = 0;
+    
+    console.log('Calculating churn risk for user:', user);
+    
+    // Age factor
+    const age = user.Age || 0;
+    console.log('User age:', age);
+    if (age < 30) risk += 15;
+    else if (age < 40) risk += 10;
+    else if (age < 50) risk += 5;
+    
+    // Employment status
+    const employment = user.Employment_Status || '';
+    if (employment === 'Unemployed') risk += 20;
+    else if (employment === 'Part-time') risk += 10;
+    else if (employment === 'Self-employed') risk += 5;
+    
+    // Contribution frequency
+    const freq = user.Contribution_Frequency || '';
+    if (freq === 'Annually') risk += 15;
+    else if (freq === 'Quarterly') risk += 8;
+    else if (freq === 'Monthly') risk += 2;
+    
+    // Years contributed
+    const years = user.Years_Contributed || 0;
+    if (years < 2) risk += 20;
+    else if (years < 5) risk += 10;
+    else if (years < 10) risk += 5;
+    
+    // Income stability
+    const income = user.Annual_Income || 0;
+    if (income < 40000) risk += 15;
+    else if (income < 60000) risk += 8;
+    else if (income < 80000) risk += 3;
+    
+    const finalRisk = Math.min(100, Math.max(0, risk));
+    console.log('Final churn risk:', finalRisk);
+    return finalRisk;
+  };
+
   const loadUserData = async () => {
     // Use custom userId if available, otherwise fall back to admin mode
     const userIdToUse = customUserId || (isAdminMode ? adminUser?.User_ID : null);
@@ -83,6 +233,10 @@ export default function Dashboard() {
     console.log('Loading user data for userId:', userIdToUse);
     
     if (isAdminMode && adminUser) {
+      console.log('Admin user data:', adminUser);
+      console.log('Admin user Employer_Contribution:', adminUser.Employer_Contribution);
+      console.log('Admin user Contribution_Amount:', adminUser.Contribution_Amount);
+      console.log('Admin user Anomaly_Score:', adminUser.Anomaly_Score);
       setCurrentUser(adminUser);
       
       // Get real projection data from ML API for admin user
@@ -92,13 +246,35 @@ export default function Dashboard() {
         
         if (projectionData.success) {
           // Calculate monthly increase needed
-          const targetAmount = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5;
-          const currentProjection = projectionData.data.adjusted_projection || targetAmount;
-          const monthlyIncreaseNeeded = Math.max(0, (targetAmount - currentProjection) / (projectionData.data.years_to_retirement * 12));
+          // We need to compare against a retirement goal, not the current projection
+          const retirementGoal = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5; // Desired retirement amount
+          const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have
+          const currentSavings = adminUser.Current_Savings; // What they have now
+          const yearsToRetirement = projectionData.data.years_to_retirement || 35;
+          
+          console.log('Projection calculation debug:', {
+            retirementGoal,
+            projectedAmount,
+            currentSavings,
+            yearsToRetirement,
+            adjusted_projection: projectionData.data.adjusted_projection,
+            years_to_retirement: projectionData.data.years_to_retirement,
+            gap: retirementGoal - projectedAmount,
+            totalMonths: yearsToRetirement * 12
+          });
+          
+          // Calculate how much more they need to contribute monthly to reach their goal
+          const monthlyIncreaseNeeded = Math.max(0, (retirementGoal - projectedAmount) / (yearsToRetirement * 12));
+          
+          console.log('Monthly increase needed calculation:', {
+            numerator: retirementGoal - projectedAmount,
+            denominator: yearsToRetirement * 12,
+            result: monthlyIncreaseNeeded
+          });
           
           setProjection({
             ...projectionData.data,
-            monthly_increase_needed: monthlyIncreaseNeeded
+            monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
           });
           setSummaryStats({
             current_savings: adminUser.Current_Savings,
@@ -121,7 +297,7 @@ export default function Dashboard() {
             current_projection: adminUser.Current_Savings * 5,
             adjusted_projection: targetAmount,
             monthly_income_at_retirement: targetAmount / 12,
-            monthly_increase_needed: monthlyIncreaseNeeded
+            monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
           });
         }
       } catch (error) {
@@ -140,7 +316,7 @@ export default function Dashboard() {
           current_projection: adminUser.Current_Savings * 5,
           adjusted_projection: targetAmount,
           monthly_income_at_retirement: targetAmount / 12,
-          monthly_increase_needed: monthlyIncreaseNeeded
+          monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
         });
       }
       
@@ -209,6 +385,7 @@ export default function Dashboard() {
           }
         });
       }
+      
       return;
     }
     
@@ -233,13 +410,35 @@ export default function Dashboard() {
             
             if (projectionData.success) {
               // Calculate monthly increase needed
-              const targetAmount = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5;
-              const currentProjection = projectionData.data.adjusted_projection || targetAmount;
-              const monthlyIncreaseNeeded = Math.max(0, (targetAmount - currentProjection) / (projectionData.data.years_to_retirement * 12));
+              // We need to compare against a retirement goal, not the current projection
+              const retirementGoal = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5; // Desired retirement amount
+              const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have
+              const currentSavings = userProfile.Current_Savings; // What they have now
+              const yearsToRetirement = projectionData.data.years_to_retirement || 35;
+              
+              console.log('Custom user projection calculation debug:', {
+                retirementGoal,
+                projectedAmount,
+                currentSavings,
+                yearsToRetirement,
+                adjusted_projection: projectionData.data.adjusted_projection,
+                years_to_retirement: projectionData.data.years_to_retirement,
+                gap: retirementGoal - projectedAmount,
+                totalMonths: yearsToRetirement * 12
+              });
+              
+              // Calculate how much more they need to contribute monthly to reach their goal
+              const monthlyIncreaseNeeded = Math.max(0, (retirementGoal - projectedAmount) / (yearsToRetirement * 12));
+              
+              console.log('Custom user monthly increase needed calculation:', {
+                numerator: retirementGoal - projectedAmount,
+                denominator: yearsToRetirement * 12,
+                result: monthlyIncreaseNeeded
+              });
               
               setProjection({
                 ...projectionData.data,
-                monthly_increase_needed: monthlyIncreaseNeeded
+                monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
               });
               setSummaryStats({
                 current_savings: userProfile.Current_Savings,
@@ -262,7 +461,7 @@ export default function Dashboard() {
                 current_projection: userProfile.Current_Savings * 5,
                 adjusted_projection: targetAmount,
                 monthly_income_at_retirement: targetAmount / 12,
-                monthly_increase_needed: monthlyIncreaseNeeded
+                monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
               });
             }
           } catch (error) {
@@ -281,7 +480,7 @@ export default function Dashboard() {
               current_projection: userProfile.Current_Savings * 5,
               adjusted_projection: targetAmount,
               monthly_income_at_retirement: targetAmount / 12,
-              monthly_increase_needed: monthlyIncreaseNeeded
+              monthly_increase_needed: Number(monthlyIncreaseNeeded) // Ensure it's a native JavaScript number
             });
           }
           
@@ -359,6 +558,7 @@ export default function Dashboard() {
       } finally {
         setLoading(false);
       }
+      
       return;
     }
     
@@ -393,6 +593,7 @@ export default function Dashboard() {
           years_to_retirement: (userProfile.Retirement_Age_Goal || 65) - (userProfile.Age || 0),
           monthly_income_at_retirement: userProfile.Current_Savings * 0.04 / 12
         });
+        
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -443,6 +644,16 @@ export default function Dashboard() {
     }
   }, [user, isAdminMode, customUserId]);
 
+  // Load advanced metrics when currentUser is set
+  useEffect(() => {
+    if (currentUser && (isAdminMode || customUserId || user)) {
+      const userId = customUserId || (isAdminMode ? currentUser.User_ID : user?.id);
+      if (userId) {
+        loadAdvancedMetrics(userId);
+      }
+    }
+  }, [currentUser, isAdminMode, customUserId, user]);
+
   const handleRiskChange = (riskTolerance: string) => {
     console.log('Risk tolerance changed to:', riskTolerance);
   };
@@ -451,7 +662,10 @@ export default function Dashboard() {
     setGoals(newGoals);
   };
 
+  console.log('Dashboard state check:', { authLoading, loading, initializing, currentUser: !!currentUser });
+  
   if (authLoading || loading || initializing) {
+    console.log('Dashboard showing loading screen');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -464,6 +678,7 @@ export default function Dashboard() {
   }
 
   if (!currentUser) {
+    console.log('Dashboard showing no currentUser screen');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -546,6 +761,7 @@ export default function Dashboard() {
             <MetricsGrid 
               user={currentUser} 
               summaryStats={summaryStats}
+              advancedMetrics={advancedMetrics}
             />
           </div>
         );
@@ -586,6 +802,7 @@ export default function Dashboard() {
             <MetricsGrid 
               user={currentUser} 
               summaryStats={summaryStats}
+              advancedMetrics={advancedMetrics}
             />
           </div>
         );
@@ -658,7 +875,6 @@ export default function Dashboard() {
 
         {/* Floating Chat Button */}
         <FloatingChatButton user={currentUser} />
-        <AdminDebug />
       </div>
     </div>
   );

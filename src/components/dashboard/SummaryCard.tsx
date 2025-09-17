@@ -29,7 +29,16 @@ export function SummaryCard({ user, projection, peerComparison, summaryStats }: 
   // Safe data extraction with fallbacks
   const retirementAmount = projection?.adjusted_projection || user?.Projected_Pension_Amount || 0;
   const monthlyIncreaseNeeded = projection?.monthly_increase_needed || 0;
-  const targetAmount = user?.Projected_Pension_Amount || 0;
+  
+  // Calculate target amount with better fallback
+  const currentSavings = user?.Current_Savings || 0;
+  const age = user?.Age || 30;
+  const retirementAge = user?.Retirement_Age_Goal || 65;
+  const yearsToRetirement = Math.max(1, retirementAge - age);
+  
+  // Use Projected_Pension_Amount if available, otherwise calculate a reasonable target
+  const targetAmount = user?.Projected_Pension_Amount || (currentSavings * Math.pow(1.07, yearsToRetirement));
+  
   const percentToGoal = summaryStats?.percent_to_goal || 0;
   const monthlyIncomeAt65 = projection?.monthly_income_at_retirement || 0;
 

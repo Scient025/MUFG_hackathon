@@ -243,6 +243,89 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       options: ['Beginner', 'Intermediate', 'Expert']
     },
     {
+      id: 'years_contributed',
+      question: "How many years have you been contributing to your superannuation?",
+      field: 'years_contributed',
+      type: 'number',
+      validation: (value: number) => value >= 0 && value <= 50,
+      parser: (input: string) => {
+        const match = input.match(/(\d+)/);
+        return match ? parseInt(match[1]) : null;
+      }
+    },
+    {
+      id: 'investment_type',
+      question: "What type of investment strategy do you prefer?",
+      field: 'investment_type',
+      type: 'select',
+      options: ['Stocks', 'Bonds', 'Mutual Fund', 'ETF', 'Real Estate', 'Balanced']
+    },
+    {
+      id: 'fund_name',
+      question: "What's the name of your preferred superannuation fund?",
+      field: 'fund_name',
+      type: 'select',
+      options: [
+        'Jackson-Ryan',
+        'Mclaughlin, Lopez and Hunt', 
+        'Hernandez-Allen',
+        'Price-Robles',
+        'Kelly, Gonzales and Wagner',
+        'Oconnell, Welch and Lopez',
+        'White Group',
+        'Johnson, Brown and Griffin',
+        'Lane-Jennings',
+        'Jenkins Inc',
+        'Nash-Guerrero',
+        'Smith, Mitchell and Burch',
+        'Zhang-Scott',
+        'Brown, Thompson and Davies',
+        'Hensley, Hale and Morales',
+        'Mullins, Dixon and Richardson',
+        'Cox, Compton and Rhodes',
+        'Hayes Group',
+        'Simon Inc',
+        'Howell and Sons',
+        'Other (Specify)'
+      ]
+    },
+    {
+      id: 'debt_level',
+      question: "What's your current debt level?",
+      field: 'debt_level',
+      type: 'select',
+      options: ['Low', 'Medium', 'High']
+    },
+    {
+      id: 'savings_rate',
+      question: "What percentage of your income do you typically save? (e.g., '15%' or '15')",
+      field: 'savings_rate',
+      type: 'number',
+      validation: (value: number) => value >= 0 && value <= 100,
+      parser: (input: string) => {
+        const match = input.match(/(\d+(?:\.\d+)?)/);
+        return match ? parseFloat(match[1]) : null;
+      }
+    },
+    {
+      id: 'monthly_expenses',
+      question: "What are your average monthly expenses? (You can say something like '$2,500' or '2.5k')",
+      field: 'monthly_expenses',
+      type: 'number',
+      validation: (value: number) => value >= 0,
+      parser: (input: string) => {
+        const match = input.match(/(?:\$)?(\d+(?:,\d{3})*(?:k|000)?)/i);
+        if (match) {
+          let amount = match[1].replace(/,/g, '');
+          if (amount.toLowerCase().endsWith('k')) {
+            amount = amount.slice(0, -1) + '000';
+          }
+          return parseFloat(amount);
+        }
+        return null;
+      }
+    },
+    {
       id: 'password',
       question: "Finally, create a password for your account (at least 6 characters):",
       field: 'password',
@@ -266,19 +349,28 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     contribution_amount: 1000,
     contribution_frequency: "Monthly",
     employer_contribution: 500,
-    years_contributed: 5,
-    investment_type: "Balanced",
-    fund_name: "Default Fund",
+    years_contributed: 19, // Median from CSV: 18.5 rounded up
+    investment_type: "Stocks", // Most common from CSV
+    fund_name: "Jackson-Ryan", // Most common fund name from CSV
     marital_status: "Single",
     number_of_dependents: 0,
-    education_level: "Bachelor",
-    health_status: "Good",
-    home_ownership_status: "Renting",
+    education_level: "PhD", // Most common from CSV
+    health_status: "Good", // Most common from CSV
+    home_ownership_status: "Rent", // Most common from CSV
     investment_experience_level: "Beginner",
     financial_goals: "Retirement",
-    insurance_coverage: "Basic",
-    pension_type: "Superannuation",
-    withdrawal_strategy: "Fixed"
+    insurance_coverage: "Yes", // Most common from CSV
+    pension_type: "Defined Contribution", // Most common from CSV
+    withdrawal_strategy: "Bucket", // Most common from CSV
+    // Additional fields used by ML models
+    debt_level: "Low",
+    savings_rate: 0.15, // 15% savings rate
+    portfolio_diversity_score: 0.6, // Moderate diversity
+    monthly_expenses: 2500, // Estimated based on income
+    transaction_amount: 0,
+    transaction_pattern_score: 0.5,
+    anomaly_score: 0.1,
+    suspicious_flag: "No"
   });
 
   const [loading, setLoading] = useState(false);
@@ -309,11 +401,13 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
   const [voices, setVoices] = useState<any[]>([]);
   const [selectedVoice, setSelectedVoice] = useState('en-AU-NatashaNeural');
   const [currentPlayingMessage, setCurrentPlayingMessage] = useState<string | null>(null);
+  const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [voiceGuidedMode, setVoiceGuidedMode] = useState(false);
+
+  // Refs
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
 
   // Calculator inputs derived from form data
   const [calculatorInputs, setCalculatorInputs] = useState<CalculatorInputs>({
@@ -1401,202 +1495,420 @@ Examples:
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name" className="text-lg font-medium">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="text-lg h-12"
-                    required
-                  />
+              {/* Essential Fields */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Essential Information</h3>
+                
+                {/* Personal Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name" className="text-lg font-medium">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      className="text-lg h-12"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="username" className="text-lg font-medium">Email (Username) *</Label>
+                    <Input
+                      id="username"
+                      type="email"
+                      value={formData.username}
+                      onChange={(e) => handleInputChange("username", e.target.value)}
+                      className="text-lg h-12"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="age" className="text-lg font-medium">Age *</Label>
+                    <Input
+                      id="age"
+                      type="number"
+                      value={formData.age}
+                      onChange={(e) => handleInputChange("age", parseInt(e.target.value))}
+                      className="text-lg h-12"
+                      min="18"
+                      max="100"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-lg font-medium">Gender *</Label>
+                    <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+                      <SelectTrigger className="h-12 text-lg bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="username" className="text-lg font-medium">Email (Username)</Label>
-                  <Input
-                    id="username"
-                    type="email"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange("username", e.target.value)}
-                    className="text-lg h-12"
-                    required
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-lg font-medium">Country *</Label>
+                    <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
+                      <SelectTrigger className="h-12 text-lg bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="Australia">Australia</SelectItem>
+                        <SelectItem value="New Zealand">New Zealand</SelectItem>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="United States">United States</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="annual_income" className="text-lg font-medium">Annual Income ($) *</Label>
+                    <Input
+                      id="annual_income"
+                      type="number"
+                      value={formData.annual_income}
+                      onChange={(e) => handleInputChange("annual_income", parseFloat(e.target.value))}
+                      className="text-lg h-12"
+                      min="0"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="age" className="text-lg font-medium">Age</Label>
-                  <Input
-                    id="age"
-                    type="number"
-                    value={formData.age}
-                    onChange={(e) => handleInputChange("age", parseInt(e.target.value))}
-                    className="text-lg h-12"
-                    min="18"
-                    max="100"
-                    required
-                  />
+
+                {/* Financial Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="current_savings" className="text-lg font-medium">Current Savings ($) *</Label>
+                    <Input
+                      id="current_savings"
+                      type="number"
+                      value={formData.current_savings}
+                      onChange={(e) => handleInputChange("current_savings", parseFloat(e.target.value))}
+                      className="text-lg h-12"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contribution_amount" className="text-lg font-medium">Monthly Contribution ($) *</Label>
+                    <Input
+                      id="contribution_amount"
+                      type="number"
+                      value={formData.contribution_amount}
+                      onChange={(e) => handleInputChange("contribution_amount", parseFloat(e.target.value))}
+                      className="text-lg h-12"
+                      min="0"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="employer_contribution" className="text-lg font-medium">Employer Contribution ($) *</Label>
+                    <Input
+                      id="employer_contribution"
+                      type="number"
+                      value={formData.employer_contribution}
+                      onChange={(e) => handleInputChange("employer_contribution", parseFloat(e.target.value))}
+                      className="text-lg h-12"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-lg font-medium">Risk Tolerance *</Label>
+                    <Select value={formData.risk_tolerance} onValueChange={(value) => handleInputChange("risk_tolerance", value)}>
+                      <SelectTrigger className="h-12 text-lg bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="Low">Low Risk</SelectItem>
+                        <SelectItem value="Medium">Medium Risk</SelectItem>
+                        <SelectItem value="High">High Risk</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-lg font-medium">Investment Experience *</Label>
+                    <Select value={formData.investment_experience_level} onValueChange={(value) => handleInputChange("investment_experience_level", value)}>
+                      <SelectTrigger className="h-12 text-lg bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="Beginner">Beginner</SelectItem>
+                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                        <SelectItem value="Expert">Expert</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-lg font-medium">Marital Status *</Label>
+                    <Select value={formData.marital_status} onValueChange={(value) => handleInputChange("marital_status", value)}>
+                      <SelectTrigger className="h-12 text-lg bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="Single">Single</SelectItem>
+                        <SelectItem value="Married">Married</SelectItem>
+                        <SelectItem value="Divorced">Divorced</SelectItem>
+                        <SelectItem value="Widowed">Widowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="number_of_dependents" className="text-lg font-medium">Number of Dependents *</Label>
+                    <Input
+                      id="number_of_dependents"
+                      type="number"
+                      value={formData.number_of_dependents}
+                      onChange={(e) => handleInputChange("number_of_dependents", parseInt(e.target.value))}
+                      className="text-lg h-12"
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="password" className="text-lg font-medium">Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className="text-lg h-12"
+                      placeholder="Create a secure password (min 6 characters)"
+                      required
+                      minLength={6}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-lg font-medium">Gender</Label>
-                  <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
-                    <SelectTrigger className="h-12 text-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-lg font-medium">Country</Label>
-                  <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
-                    <SelectTrigger className="h-12 text-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Australia">Australia</SelectItem>
-                      <SelectItem value="New Zealand">New Zealand</SelectItem>
-                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                      <SelectItem value="United States">United States</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* See More Button */}
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAdvancedFields(!showAdvancedFields)}
+                  className="px-8 py-3 text-lg"
+                >
+                  {showAdvancedFields ? 'Show Less' : 'See More Fields (Optional)'}
+                </Button>
               </div>
 
-              {/* Financial Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="annual_income" className="text-lg font-medium">Annual Income ($)</Label>
-                  <Input
-                    id="annual_income"
-                    type="number"
-                    value={formData.annual_income}
-                    onChange={(e) => handleInputChange("annual_income", parseFloat(e.target.value))}
-                    className="text-lg h-12"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="current_savings" className="text-lg font-medium">Current Savings ($)</Label>
-                  <Input
-                    id="current_savings"
-                    type="number"
-                    value={formData.current_savings}
-                    onChange={(e) => handleInputChange("current_savings", parseFloat(e.target.value))}
-                    className="text-lg h-12"
-                    min="0"
-                    required
-                  />
-                </div>
-              </div>
+              {/* Advanced Fields */}
+              {showAdvancedFields && (
+                <div className="space-y-6 border-t pt-6">
+                  <h3 className="text-xl font-semibold text-gray-800 border-b pb-2">Additional Information (Optional)</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    These fields help improve our ML models and provide more personalized recommendations. All fields are optional.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="retirement_age_goal" className="text-lg font-medium">Retirement Age Goal</Label>
+                      <Input
+                        id="retirement_age_goal"
+                        type="number"
+                        value={formData.retirement_age_goal}
+                        onChange={(e) => handleInputChange("retirement_age_goal", parseInt(e.target.value))}
+                        className="text-lg h-12"
+                        min="50"
+                        max="80"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="years_contributed" className="text-lg font-medium">Years Contributed</Label>
+                      <Input
+                        id="years_contributed"
+                        type="number"
+                        value={formData.years_contributed}
+                        onChange={(e) => handleInputChange("years_contributed", parseInt(e.target.value))}
+                        className="text-lg h-12"
+                        min="0"
+                        max="50"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contribution_amount" className="text-lg font-medium">Monthly Contribution ($)</Label>
-                  <Input
-                    id="contribution_amount"
-                    type="number"
-                    value={formData.contribution_amount}
-                    onChange={(e) => handleInputChange("contribution_amount", parseFloat(e.target.value))}
-                    className="text-lg h-12"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="employer_contribution" className="text-lg font-medium">Employer Contribution ($)</Label>
-                  <Input
-                    id="employer_contribution"
-                    type="number"
-                    value={formData.employer_contribution}
-                    onChange={(e) => handleInputChange("employer_contribution", parseFloat(e.target.value))}
-                    className="text-lg h-12"
-                    min="0"
-                    required
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-lg font-medium">Investment Type</Label>
+                      <Select value={formData.investment_type} onValueChange={(value) => handleInputChange("investment_type", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Stocks">Stocks</SelectItem>
+                          <SelectItem value="Bonds">Bonds</SelectItem>
+                          <SelectItem value="Mutual Fund">Mutual Fund</SelectItem>
+                          <SelectItem value="ETF">ETF</SelectItem>
+                          <SelectItem value="Real Estate">Real Estate</SelectItem>
+                          <SelectItem value="Balanced">Balanced</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-lg font-medium">Financial Goals</Label>
+                      <Select value={formData.financial_goals} onValueChange={(value) => handleInputChange("financial_goals", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Retirement">Retirement</SelectItem>
+                          <SelectItem value="Education">Education</SelectItem>
+                          <SelectItem value="Home">Home</SelectItem>
+                          <SelectItem value="Travel">Travel</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              {/* Risk and Investment */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-lg font-medium">Risk Tolerance</Label>
-                  <Select value={formData.risk_tolerance} onValueChange={(value) => handleInputChange("risk_tolerance", value)}>
-                    <SelectTrigger className="h-12 text-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low Risk</SelectItem>
-                      <SelectItem value="Medium">Medium Risk</SelectItem>
-                      <SelectItem value="High">High Risk</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-lg font-medium">Investment Experience</Label>
-                  <Select value={formData.investment_experience_level} onValueChange={(value) => handleInputChange("investment_experience_level", value)}>
-                    <SelectTrigger className="h-12 text-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Beginner">Beginner</SelectItem>
-                      <SelectItem value="Intermediate">Intermediate</SelectItem>
-                      <SelectItem value="Expert">Expert</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-lg font-medium">Employment Status</Label>
+                      <Select value={formData.employment_status} onValueChange={(value) => handleInputChange("employment_status", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Full-time">Full-time</SelectItem>
+                          <SelectItem value="Part-time">Part-time</SelectItem>
+                          <SelectItem value="Unemployed">Unemployed</SelectItem>
+                          <SelectItem value="Self-employed">Self-employed</SelectItem>
+                          <SelectItem value="Retired">Retired</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-lg font-medium">Education Level</Label>
+                      <Select value={formData.education_level} onValueChange={(value) => handleInputChange("education_level", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="High School">High School</SelectItem>
+                          <SelectItem value="Bachelor">Bachelor</SelectItem>
+                          <SelectItem value="Master">Master</SelectItem>
+                          <SelectItem value="PhD">PhD</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-lg font-medium">Marital Status</Label>
-                  <Select value={formData.marital_status} onValueChange={(value) => handleInputChange("marital_status", value)}>
-                    <SelectTrigger className="h-12 text-lg">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Single">Single</SelectItem>
-                      <SelectItem value="Married">Married</SelectItem>
-                      <SelectItem value="Divorced">Divorced</SelectItem>
-                      <SelectItem value="Widowed">Widowed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="number_of_dependents" className="text-lg font-medium">Number of Dependents</Label>
-                  <Input
-                    id="number_of_dependents"
-                    type="number"
-                    value={formData.number_of_dependents}
-                    onChange={(e) => handleInputChange("number_of_dependents", parseInt(e.target.value))}
-                    className="text-lg h-12"
-                    min="0"
-                    required
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-lg font-medium">Health Status</Label>
+                      <Select value={formData.health_status} onValueChange={(value) => handleInputChange("health_status", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Excellent">Excellent</SelectItem>
+                          <SelectItem value="Good">Good</SelectItem>
+                          <SelectItem value="Fair">Fair</SelectItem>
+                          <SelectItem value="Poor">Poor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-lg font-medium">Home Ownership Status</Label>
+                      <Select value={formData.home_ownership_status} onValueChange={(value) => handleInputChange("home_ownership_status", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Own">Own</SelectItem>
+                          <SelectItem value="Rent">Rent</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              {/* Password Field */}
-              <div>
-                <Label htmlFor="password" className="text-lg font-medium">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  className="text-lg h-12"
-                  placeholder="Create a secure password (min 6 characters)"
-                  required
-                  minLength={6}
-                />
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-lg font-medium">Insurance Coverage</Label>
+                      <Select value={formData.insurance_coverage} onValueChange={(value) => handleInputChange("insurance_coverage", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Yes">Yes</SelectItem>
+                          <SelectItem value="No">No</SelectItem>
+                          <SelectItem value="Partial">Partial</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-lg font-medium">Pension Type</Label>
+                      <Select value={formData.pension_type} onValueChange={(value) => handleInputChange("pension_type", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Defined Contribution">Defined Contribution</SelectItem>
+                          <SelectItem value="Defined Benefit">Defined Benefit</SelectItem>
+                          <SelectItem value="Hybrid">Hybrid</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-lg font-medium">Debt Level</Label>
+                      <Select value={formData.debt_level} onValueChange={(value) => handleInputChange("debt_level", value)}>
+                        <SelectTrigger className="h-12 text-lg bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="savings_rate" className="text-lg font-medium">Savings Rate (%)</Label>
+                      <Input
+                        id="savings_rate"
+                        type="number"
+                        value={formData.savings_rate}
+                        onChange={(e) => handleInputChange("savings_rate", parseFloat(e.target.value))}
+                        className="text-lg h-12"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="monthly_expenses" className="text-lg font-medium">Monthly Expenses ($)</Label>
+                      <Input
+                        id="monthly_expenses"
+                        type="number"
+                        value={formData.monthly_expenses}
+                        onChange={(e) => handleInputChange("monthly_expenses", parseFloat(e.target.value))}
+                        className="text-lg h-12"
+                        min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-4 pt-6">

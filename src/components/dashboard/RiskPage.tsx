@@ -13,54 +13,70 @@ interface RiskPageProps {
 
 export function RiskPage({ user, onRiskChange }: RiskPageProps) {
   const [riskTolerance, setRiskTolerance] = useState(user.Risk_Tolerance || 'Medium');
-  const [allocationInputs, setAllocationInputs] = useState({
-    shares: 60,
-    realEstate: 20,
-    fixedIncome: 15,
-    cash: 5
+  
+  // Calculate ideal allocations based on risk tolerance
+  const getIdealAllocation = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'Low':
+        return {
+          shares: 30,
+          realEstate: 15,
+          fixedIncome: 40,
+          cash: 15
+        };
+      case 'Medium':
+        return {
+          shares: 50,
+          realEstate: 20,
+          fixedIncome: 25,
+          cash: 5
+        };
+      case 'High':
+        return {
+          shares: 70,
+          realEstate: 15,
+          fixedIncome: 10,
+          cash: 5
+        };
+      default:
+        return {
+          shares: 50,
+          realEstate: 20,
+          fixedIncome: 25,
+          cash: 5
+        };
+    }
+  };
+
+  const [allocationInputs, setAllocationInputs] = useState(() => {
+    const idealAllocation = getIdealAllocation(user.Risk_Tolerance || 'Medium');
+    return idealAllocation;
   });
 
   const riskLevels = {
     Low: {
       color: 'bg-green-100 text-green-800 border-green-200',
       icon: Shield,
-      description: 'Conservative approach with focus on capital preservation',
-      recommendedAllocation: {
-        shares: 30,
-        realEstate: 15,
-        fixedIncome: 40,
-        cash: 15
-      }
+      description: 'Conservative approach with focus on capital preservation'
     },
     Medium: {
       color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       icon: TrendingUp,
-      description: 'Balanced approach with moderate growth potential',
-      recommendedAllocation: {
-        shares: 50,
-        realEstate: 20,
-        fixedIncome: 25,
-        cash: 5
-      }
+      description: 'Balanced approach with moderate growth potential'
     },
     High: {
       color: 'bg-red-100 text-red-800 border-red-200',
       icon: TrendingUp,
-      description: 'Growth-focused approach with higher volatility',
-      recommendedAllocation: {
-        shares: 70,
-        realEstate: 15,
-        fixedIncome: 10,
-        cash: 5
-      }
+      description: 'Growth-focused approach with higher volatility'
     }
   };
 
   const currentRisk = riskLevels[riskTolerance as keyof typeof riskLevels];
-  const recommendedAllocation = currentRisk.recommendedAllocation;
+  const recommendedAllocation = getIdealAllocation(riskTolerance);
 
   const handleRiskChange = (newRisk: string) => {
     setRiskTolerance(newRisk);
+    // Don't automatically update allocation inputs - let user decide
     onRiskChange(newRisk);
   };
 
@@ -103,6 +119,9 @@ export function RiskPage({ user, onRiskChange }: RiskPageProps) {
             <Shield className="w-7 h-7" />
             Your Risk Tolerance
           </CardTitle>
+          <div className="text-lg text-muted-foreground mt-2">
+            Current risk tolerance: <span className="font-semibold text-primary">{user.Risk_Tolerance || 'Medium'}</span>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -235,6 +254,13 @@ export function RiskPage({ user, onRiskChange }: RiskPageProps) {
                     Please adjust your allocation to total 100%
                   </p>
                 )}
+                <Button 
+                  onClick={() => setAllocationInputs(getIdealAllocation(riskTolerance))}
+                  variant="outline" 
+                  className="w-full mt-3"
+                >
+                  Set to {riskTolerance} Risk Ideal Allocation
+                </Button>
               </div>
             </div>
           </div>
@@ -306,6 +332,9 @@ export function RiskPage({ user, onRiskChange }: RiskPageProps) {
                   ? `Your allocation is well-aligned with the recommended ${riskTolerance} risk profile (${deviation}% total deviation).`
                   : `Your allocation differs significantly from the recommended ${riskTolerance} risk profile (${deviation}% total deviation). Consider adjusting to better match your risk tolerance.`
                 }
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                💡 Tip: Use the "Set to {riskTolerance} Risk Ideal Allocation" button above to match the recommended allocation.
               </p>
             </div>
           </div>

@@ -20,13 +20,57 @@ export function MetricsGrid({ user, summaryStats, advancedMetrics }: MetricsGrid
   const currentBalance = user?.Current_Savings || 0;
   const percentToGoal = summaryStats?.percent_to_goal || 0;
   const monthlyIncomeAt65 = summaryStats?.monthly_income_at_retirement || 0;
+  
+  // Use direct Supabase data - these fields already exist in the database
   const employerContribution = user?.Employer_Contribution || 0;
   const totalAnnualContribution = user?.Total_Annual_Contribution || 0;
   
-  // Advanced metrics
+  // If Total_Annual_Contribution is not available, calculate it
+  let calculatedTotalAnnual = totalAnnualContribution;
+  if (!totalAnnualContribution || totalAnnualContribution === 0) {
+    const personalContribution = user?.Contribution_Amount || 0;
+    const contributionFrequency = user?.Contribution_Frequency || 'Monthly';
+    
+    // Convert to annual based on frequency
+    let personalAnnual = personalContribution;
+    let employerAnnual = employerContribution;
+    
+    switch (contributionFrequency.toLowerCase()) {
+      case 'monthly':
+        personalAnnual = personalContribution * 12;
+        employerAnnual = employerContribution * 12;
+        break;
+      case 'quarterly':
+        personalAnnual = personalContribution * 4;
+        employerAnnual = employerContribution * 4;
+        break;
+      case 'annually':
+        personalAnnual = personalContribution;
+        employerAnnual = employerContribution;
+        break;
+      default:
+        // Default to monthly if unknown
+        personalAnnual = personalContribution * 12;
+        employerAnnual = employerContribution * 12;
+    }
+    
+    calculatedTotalAnnual = personalAnnual + employerAnnual;
+  }
+  
+  // Advanced metrics - use ML data if available, otherwise use fallback
   const financialHealthScore = advancedMetrics?.financial_health_score || 0;
   const churnRiskPercentage = advancedMetrics?.churn_risk_percentage || 0;
+  // Anomaly score comes from ML API only (not in Supabase)
   const anomalyScore = advancedMetrics?.anomaly_score || 0;
+
+  // Debug logging
+  console.log('MetricsGrid - user data:', user);
+  console.log('MetricsGrid - advancedMetrics:', advancedMetrics);
+  console.log('MetricsGrid - user.Employer_Contribution:', user?.Employer_Contribution);
+  console.log('MetricsGrid - user.Total_Annual_Contribution:', user?.Total_Annual_Contribution);
+  console.log('MetricsGrid - calculatedTotalAnnual:', calculatedTotalAnnual);
+  console.log('MetricsGrid - anomalyScore (from ML):', anomalyScore);
+  console.log('Note: Anomaly_Score is NOT in Supabase - only available via ML API');
 
   const metricCards = [
     {
@@ -80,7 +124,7 @@ export function MetricsGrid({ user, summaryStats, advancedMetrics }: MetricsGrid
     },
     {
       title: "Total Annual Contribution",
-      value: formatCurrency(totalAnnualContribution),
+      value: formatCurrency(calculatedTotalAnnual),
       icon: PiggyBank,
       status: "good",
       subtitle: "Personal + employer"
