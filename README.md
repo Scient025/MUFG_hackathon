@@ -297,8 +297,18 @@ The application uses real data from `case1.csv` with 500+ users including:
 - **Enhanced Voice Commands**: More natural voice interactions
 
 ## 🖼️ Preview
+
+- **Landing Page**
 <img width="1234" height="583" alt="image" src="https://github.com/user-attachments/assets/f1ddc3e5-7b78-481f-9a3a-406e7336f27d" />
 
+- **Signup Page**
+<img width="1234" height="877" alt="image" src="https://github.com/user-attachments/assets/6f06831b-a84f-4b30-ba5e-fac4447f6704" />
+
+- **User Dashboard**
+<img width="1234" height="1668" alt="image" src="https://github.com/user-attachments/assets/701fc8dd-4633-44b1-85f2-092d0dfe0ad2" />
+
+## 🚀 Live Demo  
+[![Demo Video](https://img.youtube.com/vi/5NB-efc0jro/0.jpg)](https://www.youtube.com/watch?v=5NB-efc0jro)
 
 ## 📄 License
 
