@@ -305,6 +305,21 @@ async def get_advanced_analysis(user_id: str):
         
         if 'error' in analysis:
             raise ValueError(analysis['error'])
+        
+        # Ensure all numeric values are native Python types for JSON serialization
+        def convert_numpy_types(obj):
+            if isinstance(obj, dict):
+                return {k: convert_numpy_types(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy_types(item) for item in obj]
+            elif hasattr(obj, 'item'):  # NumPy scalar
+                return obj.item()
+            elif isinstance(obj, (np.integer, np.floating)):
+                return obj.item()
+            else:
+                return obj
+        
+        analysis = convert_numpy_types(analysis)
             
         return {"success": True, "data": analysis}
     except ValueError as e:

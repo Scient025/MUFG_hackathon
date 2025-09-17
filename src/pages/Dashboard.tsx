@@ -246,9 +246,11 @@ export default function Dashboard() {
         
         if (projectionData.success) {
           // Calculate monthly increase needed
-          // We need to compare against a retirement goal, not the current projection
-          const retirementGoal = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5; // Desired retirement amount
-          const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have
+          // The user wants to reach their Projected_Pension_Amount goal
+          // The ML model predicts they'll have adjusted_projection with current contributions
+          // We need to calculate how much more they need to contribute monthly to reach their goal
+          const retirementGoal = adminUser.Projected_Pension_Amount || adminUser.Current_Savings * 5; // What they want to have
+          const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have with current contributions
           const currentSavings = adminUser.Current_Savings; // What they have now
           const yearsToRetirement = projectionData.data.years_to_retirement || 35;
           
@@ -260,16 +262,21 @@ export default function Dashboard() {
             adjusted_projection: projectionData.data.adjusted_projection,
             years_to_retirement: projectionData.data.years_to_retirement,
             gap: retirementGoal - projectedAmount,
-            totalMonths: yearsToRetirement * 12
+            totalMonths: yearsToRetirement * 12,
+            isExceedingGoal: projectedAmount > retirementGoal
           });
           
           // Calculate how much more they need to contribute monthly to reach their goal
+          // If they're already exceeding their goal, show 0
+          // If they're short, calculate the monthly increase needed
           const monthlyIncreaseNeeded = Math.max(0, (retirementGoal - projectedAmount) / (yearsToRetirement * 12));
           
           console.log('Monthly increase needed calculation:', {
             numerator: retirementGoal - projectedAmount,
             denominator: yearsToRetirement * 12,
-            result: monthlyIncreaseNeeded
+            result: monthlyIncreaseNeeded,
+            isExceedingGoal: projectedAmount > retirementGoal,
+            excessAmount: projectedAmount - retirementGoal
           });
           
           setProjection({
@@ -410,9 +417,11 @@ export default function Dashboard() {
             
             if (projectionData.success) {
               // Calculate monthly increase needed
-              // We need to compare against a retirement goal, not the current projection
-              const retirementGoal = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5; // Desired retirement amount
-              const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have
+              // The user wants to reach their Projected_Pension_Amount goal
+              // The ML model predicts they'll have adjusted_projection with current contributions
+              // We need to calculate how much more they need to contribute monthly to reach their goal
+              const retirementGoal = userProfile.Projected_Pension_Amount || userProfile.Current_Savings * 5; // What they want to have
+              const projectedAmount = projectionData.data.adjusted_projection; // What they'll actually have with current contributions
               const currentSavings = userProfile.Current_Savings; // What they have now
               const yearsToRetirement = projectionData.data.years_to_retirement || 35;
               
@@ -424,16 +433,21 @@ export default function Dashboard() {
                 adjusted_projection: projectionData.data.adjusted_projection,
                 years_to_retirement: projectionData.data.years_to_retirement,
                 gap: retirementGoal - projectedAmount,
-                totalMonths: yearsToRetirement * 12
+                totalMonths: yearsToRetirement * 12,
+                isExceedingGoal: projectedAmount > retirementGoal
               });
               
               // Calculate how much more they need to contribute monthly to reach their goal
+              // If they're already exceeding their goal, show 0
+              // If they're short, calculate the monthly increase needed
               const monthlyIncreaseNeeded = Math.max(0, (retirementGoal - projectedAmount) / (yearsToRetirement * 12));
               
               console.log('Custom user monthly increase needed calculation:', {
                 numerator: retirementGoal - projectedAmount,
                 denominator: yearsToRetirement * 12,
-                result: monthlyIncreaseNeeded
+                result: monthlyIncreaseNeeded,
+                isExceedingGoal: projectedAmount > retirementGoal,
+                excessAmount: projectedAmount - retirementGoal
               });
               
               setProjection({

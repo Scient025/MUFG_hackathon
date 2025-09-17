@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 from typing import Dict, List, Any, Optional
 import os
-from advanced_ml_models import AdvancedMLModels
+from advanced_ml_models import AdvancedMLModels, safe_num
 from supabase_config import supabase, USER_PROFILES_TABLE
 
 class IntegratedMLPipeline:
@@ -35,12 +35,12 @@ class IntegratedMLPipeline:
                 'user_id': user_id,
                 'user_profile': {
                     'name': user.get('Name', 'Unknown'),
-                    'age': int(user['Age']) if user['Age'] is not None else 0,
-                    'annual_income': float(user['Annual_Income']) if user['Annual_Income'] is not None else 0.0,
-                    'current_savings': float(user['Current_Savings']) if user['Current_Savings'] is not None else 0.0,
+                    'age': safe_num(user['Age']) if user['Age'] is not None else 0,
+                    'annual_income': safe_num(user['Annual_Income']) if user['Annual_Income'] is not None else 0.0,
+                    'current_savings': safe_num(user['Current_Savings']) if user['Current_Savings'] is not None else 0.0,
                     'risk_tolerance': user['Risk_Tolerance'],
                     'fund_name': user['Fund_Name'],
-                    'contribution_amount': float(user['Contribution_Amount']) if user['Contribution_Amount'] is not None else 0.0
+                    'contribution_amount': safe_num(user['Contribution_Amount']) if user['Contribution_Amount'] is not None else 0.0
                 },
                 'financial_health': financial_health,
                 'churn_risk': churn_risk,
@@ -84,16 +84,16 @@ class IntegratedMLPipeline:
             anomaly_percentage = anomaly_detection.get('anomaly_percentage', 0)
             
             return {
-                'current_balance': float(current_balance),
-                'percent_to_goal': float(percent_to_goal),
-                'monthly_income_at_retirement': float(monthly_income_at_retirement),
-                'employer_contribution': float(employer_contribution),
-                'total_annual_contribution': float(total_annual_contribution),
-                'financial_health_score': float(health_score),
-                'churn_risk_percentage': float(churn_probability * 100),
-                'anomaly_score': float(anomaly_percentage),
+                'current_balance': safe_num(current_balance),
+                'percent_to_goal': safe_num(percent_to_goal),
+                'monthly_income_at_retirement': safe_num(monthly_income_at_retirement),
+                'employer_contribution': safe_num(employer_contribution),
+                'total_annual_contribution': safe_num(total_annual_contribution),
+                'financial_health_score': safe_num(health_score),
+                'churn_risk_percentage': safe_num(churn_probability * 100),
+                'anomaly_score': safe_num(anomaly_percentage),
                 'goal_progress': {
-                    'percentage': float(percent_to_goal),
+                    'percentage': safe_num(percent_to_goal),
                     'status': 'On track' if percent_to_goal >= 75 else 'Needs attention' if percent_to_goal >= 50 else 'At risk'
                 }
             }
