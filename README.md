@@ -37,7 +37,7 @@ A comprehensive AI-powered superannuation advisor with ML models, real-time pred
 
 ### 🤖 AI Chatbot with Voice
 - **Floating Action Button**: Easy access to AI advisor
-- **Voice Interaction**: Speech-to-text and text-to-speech capabilities
+- **Voice Interaction**: Text-to-speech capabilities
 - **Voice Controls**: Start/stop recording, voice selection, enable/disable
 - **Individual Message Playback**: Speaker icons for manual message reading
 - **Sample Questions**: Pre-built questions for common scenarios
@@ -45,7 +45,6 @@ A comprehensive AI-powered superannuation advisor with ML models, real-time pred
 - **Contextual Advice**: Personalized recommendations based on user profile
 
 ### 🎤 Azure Speech Services
-- **Text-to-Speech (TTS)**: Converts AI responses to natural speech
 - **Speech-to-Text (STT)**: Voice input for chatbot interactions
 - **Multiple Voice Options**: Australian, US, and UK English voices
 - **Voice-Guided Signup**: Voice-assisted user profile creation
@@ -296,6 +295,10 @@ The application uses real data from `case1.csv` with 500+ users including:
 - **Advanced Analytics**: More sophisticated financial modeling
 - **Mobile App**: Native mobile application
 - **Enhanced Voice Commands**: More natural voice interactions
+
+## 🖼️ Preview
+<img width="1234" height="583" alt="image" src="https://github.com/user-attachments/assets/f1ddc3e5-7b78-481f-9a3a-406e7336f27d" />
+
 
 ## 📄 License
 
