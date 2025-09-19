@@ -450,7 +450,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       scrollChatToBottom();
     }, 100);
   }, [chatMessages]);
-
+  const { toast } = useToast();
   const loadVoices = async () => {
     try {
       const response = await fetch('http://localhost:8000/voices');

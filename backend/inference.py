@@ -6,6 +6,19 @@ import os
 from sklearn.preprocessing import LabelEncoder
 from supabase_config import supabase, USER_PROFILES_TABLE
 
+def safe_convert_to_number(value):
+    """Convert value to number, handling strings like 'Low', 'Medium', 'High'"""
+    if pd.isna(value) or value is None:
+        return 0
+    if isinstance(value, str):
+        # Try to convert numeric strings
+        try:
+            return float(value)
+        except ValueError:
+            # For non-numeric strings like 'Low', 'Medium', 'High', return 0
+            return 0
+    return float(value)
+
 class SuperannuationInference:
     def __init__(self, models_dir: str = "models"):
         self.models_dir = models_dir
@@ -195,7 +208,7 @@ class SuperannuationInference:
                 if pd.isna(value) or value is None:
                     feature_values.append(0)
                 else:
-                    feature_values.append(value)
+                    feature_values.append(safe_convert_to_number(value))
             else:
                 # Handle missing encoded features by creating them on-the-fly
                 if feature == 'Investment_Experience_Level_encoded':
@@ -267,7 +280,7 @@ class SuperannuationInference:
                     if pd.isna(value) or value is None:
                         feature_values.append(0)
                     else:
-                        feature_values.append(value)
+                        feature_values.append(safe_convert_to_number(value))
             else:
                 feature_values.append(0)
         
@@ -381,7 +394,7 @@ class SuperannuationInference:
                     if pd.isna(value) or value is None:
                         feature_values.append(0)
                     else:
-                        feature_values.append(value)
+                        feature_values.append(safe_convert_to_number(value))
                 else:
                     # Handle missing encoded features by creating them on-the-fly
                     if feature == 'Risk_Tolerance_encoded':

@@ -312,10 +312,7 @@ export const dataService = {
           "Years_of_Payout": 25, // Default retirement duration
           "Survivor_Benefits": "Yes", // Most common from CSV
           "Transaction_ID": null,
-          "Transaction_Amount": null,
           "Transaction_Date": null,
-          "Suspicious_Flag": null,
-          "Anomaly_Score": null,
           "Life_Expectancy_Estimate": 85, // Median from CSV
           "Tax_Benefits_Eligibility": "Yes", // Most common from CSV
           "Government_Pension_Eligibility": "Yes", // Most common from CSV
@@ -325,7 +322,6 @@ export const dataService = {
           "Device_ID": null,
           "Geo_Location": null,
           "Time_of_Transaction": null,
-          "Transaction_Pattern_Score": null,
           "Previous_Fraud_Flag": null,
           "Account_Age": null,
           "Risk_Tolerance_encoded": null,
