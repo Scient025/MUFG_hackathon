@@ -1,5 +1,5 @@
 version: 1.0
-runtime: python3
+runtime: python3.11  
 build:
   commands:
     build:
@@ -9,7 +9,7 @@ build:
       - pip install --upgrade pip
       - pip install -r requirements.txt
 run:
-  runtime-version: 3.11
+  runtime-version: 3.11  
   command: uvicorn api:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
