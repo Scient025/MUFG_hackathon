@@ -3,10 +3,9 @@ runtime: python311
 build:
   commands:
     pre-build:
-      - echo "Installing system dependencies..."
-      - apt-get update && apt-get install -y gcc g++ curl libffi-dev libssl-dev
+      - echo "Preparing build environment..."
     build:
-      - echo "Upgrading pip..."
+      - echo "Upgrading pip and build tools..."
       - pip install --upgrade pip setuptools wheel
       - echo "Installing Python dependencies..."
       - pip install --no-cache-dir -r requirements.txt
