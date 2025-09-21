@@ -1,11 +1,9 @@
 version: 1.0
-runtime: python3.11
+runtime: python311
 build:
   commands:
     build:
-      - echo "Installing system dependencies..."
       - apt-get update && apt-get install -y gcc g++ curl
-      - echo "Installing Python dependencies..."
       - pip install --upgrade pip
       - pip install -r requirements.txt
 run:
@@ -15,5 +13,3 @@ run:
   env:
     - name: PORT
       value: "8000"
-    - name: PYTHONPATH
-      value: "/app"
