@@ -1,6 +1,15 @@
 version: 1.0
-runtime: docker
+runtime: python3
+build:
+  commands:
+    build:
+      - echo "Installing system dependencies..."
+      - apt-get update && apt-get install -y gcc g++ curl
+      - echo "Installing Python dependencies..."
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
 run:
+  runtime-version: 3.11
   command: uvicorn api:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
