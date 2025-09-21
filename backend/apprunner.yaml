@@ -2,14 +2,13 @@ version: 1.0
 runtime: python311
 build:
   commands:
-    build:
-      - echo "Installing system dependencies..."
-      - apt-get update && apt-get install -y gcc g++ curl libffi-dev libssl-dev
-      - echo "Upgrading pip..."
-      - pip install --upgrade pip setuptools wheel
-      - echo "Installing Python dependencies..."
-      - pip install --no-cache-dir -r requirements.txt
-      - echo "Build completed successfully"
+    - echo "Installing system dependencies..."
+    - apt-get update && apt-get install -y gcc g++ curl libffi-dev libssl-dev
+    - echo "Upgrading pip..."
+    - pip install --upgrade pip setuptools wheel
+    - echo "Installing Python dependencies..."
+    - pip install --no-cache-dir -r requirements.txt
+    - echo "Build completed successfully"
 run:
   command: uvicorn api:app --host 0.0.0.0 --port 8000
   network:
