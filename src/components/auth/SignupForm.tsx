@@ -453,7 +453,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
   const { toast } = useToast();
   const loadVoices = async () => {
     try {
-      const response = await fetch('http://localhost:8000/voices');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/voices`);
       const data = await response.json();
       if (data.enabled) {
         setVoices(data.voices);
@@ -535,7 +535,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
       const uint8Array = new Uint8Array(arrayBuffer);
       const hexString = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
       
-      const response = await fetch('http://localhost:8000/speech-to-text', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/speech-to-text`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -633,7 +633,7 @@ export function SignupForm({ onSignupSuccess, onCancel }: SignupFormProps) {
     stopAudioPlayback();
     
     try {
-      const response = await fetch('http://localhost:8000/text-to-speech', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/text-to-speech`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

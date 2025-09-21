@@ -1,7 +1,7 @@
 // Data service for superannuation advisor dashboard
 // Connects to ML backend API
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 
 export interface SignupData {
@@ -87,6 +87,13 @@ export interface UserProfile {
   Annual_Return_Rate: number;
   Volatility: number;
   Fees_Percentage: number;
+
+  id?: string;
+  name?: string;
+  age?: number;
+  risk_tolerance?: 'Low' | 'Medium' | 'High';
+  marital_status?: string;
+  number_of_dependents?: number;
   Projected_Pension_Amount: number;
   Expected_Annual_Payout: number;
   Inflation_Adjusted_Payout: number;

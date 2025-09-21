@@ -29,7 +29,7 @@ export function DashboardHeader({ user, goalProgress }: DashboardHeaderProps) {
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
     try {
-      const response = await fetch(`http://localhost:8000/trigger-email/${newsSource}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/trigger-email/${newsSource}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

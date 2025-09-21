@@ -34,14 +34,22 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+allowed_origins = [
+    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:8080",
+]
+
+# Add production origins if environment variables are set
+if os.getenv("FRONTEND_URL"):
+    allowed_origins.append(os.getenv("FRONTEND_URL"))
+if os.getenv("VERCEL_URL"):
+    allowed_origins.append(f"https://{os.getenv('VERCEL_URL')}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8080",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:8080",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -193,22 +201,22 @@ async def simulate_scenario(request: SimulationRequest):
         projection = inference_engine.predict_pension_projection(
             request.user_id, request.extra_monthly
         )
-        
+
         # Ensure all numeric values are native Python types for JSON serialization
         def convert_numpy_types(obj):
             if isinstance(obj, dict):
                 return {k: convert_numpy_types(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [convert_numpy_types(item) for item in obj]
-            elif hasattr(obj, 'item'):  # NumPy scalar
+            elif hasattr(obj, "item"):  # NumPy scalar
                 return obj.item()
             elif isinstance(obj, (np.integer, np.floating)):
                 return obj.item()
             else:
                 return obj
-        
+
         projection = convert_numpy_types(projection)
-        
+
         print(f"Projection successful: {projection}")
         return {"success": True, "data": projection}
     except ValueError as e:
@@ -270,22 +278,22 @@ async def get_pension_projection(user_id: str):
     """Get pension projection"""
     try:
         projection = inference_engine.predict_pension_projection(user_id)
-        
+
         # Ensure all numeric values are native Python types for JSON serialization
         def convert_numpy_types(obj):
             if isinstance(obj, dict):
                 return {k: convert_numpy_types(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [convert_numpy_types(item) for item in obj]
-            elif hasattr(obj, 'item'):  # NumPy scalar
+            elif hasattr(obj, "item"):  # NumPy scalar
                 return obj.item()
             elif isinstance(obj, (np.integer, np.floating)):
                 return obj.item()
             else:
                 return obj
-        
+
         projection = convert_numpy_types(projection)
-        
+
         return {"success": True, "data": projection}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -300,27 +308,28 @@ async def get_advanced_analysis(user_id: str):
     """Get comprehensive advanced ML analysis for a user"""
     try:
         from integrated_ml_pipeline import IntegratedMLPipeline
+
         ml_pipeline = IntegratedMLPipeline()
         analysis = ml_pipeline.get_comprehensive_user_analysis(user_id)
-        
-        if 'error' in analysis:
-            raise ValueError(analysis['error'])
-        
+
+        if "error" in analysis:
+            raise ValueError(analysis["error"])
+
         # Ensure all numeric values are native Python types for JSON serialization
         def convert_numpy_types(obj):
             if isinstance(obj, dict):
                 return {k: convert_numpy_types(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [convert_numpy_types(item) for item in obj]
-            elif hasattr(obj, 'item'):  # NumPy scalar
+            elif hasattr(obj, "item"):  # NumPy scalar
                 return obj.item()
             elif isinstance(obj, (np.integer, np.floating)):
                 return obj.item()
             else:
                 return obj
-        
+
         analysis = convert_numpy_types(analysis)
-            
+
         return {"success": True, "data": analysis}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -576,6 +585,7 @@ async def get_all_users():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
+
 @app.get("/supabase/users/{user_id}")
 async def get_user_profile(user_id: str):
     """Get user profile from Supabase"""
@@ -590,13 +600,18 @@ async def get_user_profile(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching user: {str(e)}")
 
+
 @app.post("/supabase/users")
 async def create_user_profile(request: UserSignupRequest):
     """Create user profile in Supabase"""
     try:
         user_data = {
-            "id": request.user_id if hasattr(request, 'user_id') else None,
-            "email": request.email if hasattr(request, 'email') else f"user_{request.name.lower().replace(' ', '_')}@example.com",
+            "id": request.user_id if hasattr(request, "user_id") else None,
+            "email": (
+                request.email
+                if hasattr(request, "email")
+                else f"user_{request.name.lower().replace(' ', '_')}@example.com"
+            ),
             "name": request.name,
             "age": request.age,
             "gender": request.gender,
@@ -621,9 +636,9 @@ async def create_user_profile(request: UserSignupRequest):
             "financial_goals": request.financial_goals,
             "insurance_coverage": request.insurance_coverage,
             "pension_type": request.pension_type,
-            "withdrawal_strategy": request.withdrawal_strategy
+            "withdrawal_strategy": request.withdrawal_strategy,
         }
-        
+
         success = await SupabaseService.create_user_profile(user_data)
         if success:
             return {"success": True, "message": "User profile created successfully"}
@@ -633,6 +648,7 @@ async def create_user_profile(request: UserSignupRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
 
 @app.put("/supabase/users/{user_id}")
 async def update_user_profile(user_id: str, request: UserSignupRequest):
@@ -663,9 +679,9 @@ async def update_user_profile(user_id: str, request: UserSignupRequest):
             "financial_goals": request.financial_goals,
             "insurance_coverage": request.insurance_coverage,
             "pension_type": request.pension_type,
-            "withdrawal_strategy": request.withdrawal_strategy
+            "withdrawal_strategy": request.withdrawal_strategy,
         }
-        
+
         success = await SupabaseService.update_user_profile(user_id, updates)
         if success:
             return {"success": True, "message": "User profile updated successfully"}
@@ -675,6 +691,7 @@ async def update_user_profile(user_id: str, request: UserSignupRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
+
 
 @app.delete("/supabase/users/{user_id}")
 async def delete_user_profile(user_id: str):
@@ -690,6 +707,7 @@ async def delete_user_profile(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}")
 
+
 @app.get("/supabase/users/search/{search_term}")
 async def search_users(search_term: str):
     """Search users by name or email"""
@@ -699,6 +717,7 @@ async def search_users(search_term: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching users: {str(e)}")
 
+
 @app.get("/supabase/users/filter/{filter_type}/{value}")
 async def filter_users(filter_type: str, value: str):
     """Filter users by specific criteria"""
@@ -707,6 +726,7 @@ async def filter_users(filter_type: str, value: str):
         return {"success": True, "data": [user.to_dict() for user in users]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error filtering users: {str(e)}")
+
 
 @app.get("/health")
 async def health_check():
@@ -724,4 +744,5 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("api:app", host="0.0.0.0", port=port, reload=False, log_level="info")
