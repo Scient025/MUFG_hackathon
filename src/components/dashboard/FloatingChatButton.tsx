@@ -20,7 +20,7 @@ export function FloatingChatButton({ user }: FloatingChatButtonProps) {
     {
       id: '1',
       type: 'bot',
-      content: `Hi ${user?.User_ID || 'there'}! I'm your AI superannuation advisor. How can I help with your superannuation questions?`,
+      content: `Hello! I'm your AI superannuation advisor. I can help you understand your retirement projections, analyze your portfolio, and answer questions about your financial goals. What would you like to know?`,
       timestamp: new Date()
     }
   ]);

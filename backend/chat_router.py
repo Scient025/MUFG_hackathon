@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 
 # Shared prompt instructions for consistent formatting
 SHARED_PROMPT_INSTRUCTIONS = """
-You are a senior superannuation advisor with 20+ years of experience in financial planning. 
+You are a senior superannuation advisor with 20+ years of experience in financial planning.
+
+IMPORTANT SCOPE RESTRICTIONS:
+- ONLY answer questions related to superannuation, retirement planning, financial planning, investments, pensions, and personal finance
+- If asked about topics outside of finance/superannuation (like sports, entertainment, general knowledge, etc.), politely decline and redirect to financial topics
+- Say: "I'm specialized in superannuation and financial planning. I can help you with questions about your retirement savings, investment strategies, contribution advice, or any other financial planning matters. What would you like to know about your superannuation?"
+
 Always answer in a way that is:
 - **Clear, concise, and professional** but still conversational and approachable.
 - **Structured** into sections with headings and bullet points.
@@ -68,6 +74,14 @@ Tone guidelines:
 - Be specific with numbers and percentages
 """
 
+# Separate instruction for greetings
+GREETING_PROMPT = """
+You are a friendly superannuation advisor. The user has just greeted you. 
+Respond with a warm, brief greeting (1-2 sentences maximum) and ask how you can help with their retirement planning today.
+Do NOT provide any analysis or detailed information unless specifically asked.
+Keep it short, friendly, and conversational.
+"""
+
 class SuperannuationChatRouter:
     def __init__(self, api_base_url: str = "http://localhost:8000", gemini_api_key: str = None):
         self.api_base_url = api_base_url
@@ -89,18 +103,42 @@ class SuperannuationChatRouter:
             logger.warning("⚠️ GEMINI_API_KEY not set. LLM features will not work.")
             self.model = None
         
-        # Response length configuration (in tokens) - Significantly increased to prevent truncation
+        # Response length configuration (in tokens)
         self.base_response_lengths = {
-            "risk": 900,       # Doubled for risk questions
-            "contribution": 1000, # Doubled for contribution analysis
-            "projection": 1000,  # Doubled for retirement planning
-            "peer": 800,       # Doubled for peer comparisons
-            "general": 900,    # Doubled default length
-            "greeting": 100     # Short for greetings
+            "risk": 900,
+            "contribution": 1000,
+            "projection": 1000,
+            "peer": 800,
+            "general": 900,
+            "greeting": 150  # Short for greetings
         }
         
-        # Prompt length control (concise vs detailed)
-        self.concise_mode = True  # Set to False for detailed responses
+        # Greeting keywords for detection
+        self.greeting_keywords = [
+            'hi', 'hello', 'hey', 'greetings', 'good morning', 'good afternoon', 
+            'good evening', 'howdy', 'hola', 'bonjour', 'g\'day', 'sup', 'yo',
+            'hi there', 'hello there', 'hey there'
+        ]
+    
+    def is_simple_greeting(self, message: str) -> bool:
+        """Check if the message is just a simple greeting without a financial question"""
+        message_lower = message.lower().strip()
+        
+        # Remove punctuation for better matching
+        message_clean = ''.join(c for c in message_lower if c.isalnum() or c.isspace())
+        
+        # Check if message is very short (typical of greetings)
+        if len(message_clean.split()) <= 3:
+            # Check if it matches common greetings
+            for greeting in self.greeting_keywords:
+                if greeting in message_clean or message_clean in greeting:
+                    return True
+        
+        # Also check for exact matches
+        if message_clean in self.greeting_keywords:
+            return True
+            
+        return False
     
     def safe_get(self, data: Dict[str, Any], key: str, default: Any = None) -> Any:
         """Safely get a value from a dictionary, handling nested keys and missing data"""
@@ -163,33 +201,6 @@ class SuperannuationChatRouter:
         
         return validated
     
-    def adjust_response_length(self, message: str, base_length: int, intent: str = "general") -> int:
-        """Dynamically adjust response length based on query keywords and intent"""
-        message_lower = message.lower()
-        
-        # For greetings, always use minimal length
-        if intent == "greeting":
-            return 100  # Short for greetings
-        
-        # For casual queries (short messages without question words), reduce length
-        casual_indicators = len(message.strip()) < 20 and not any(word in message_lower for word in ["what", "how", "why", "when", "where", "can", "should", "would", "could"])
-        if casual_indicators:
-            return int(base_length * 0.6)  # Reduce by 40% for casual queries (less aggressive)
-        
-        # Keywords that suggest detailed responses
-        detail_keywords = ["detailed", "step by step", "explain", "comprehensive", "thorough", "in depth", "analysis", "complete"]
-        
-        if any(keyword in message_lower for keyword in detail_keywords):
-            return int(base_length * 1.5)  # Increase by 50% for detailed requests
-        
-        # Keywords that suggest concise responses
-        concise_keywords = ["brief", "quick", "summary", "short", "simple"]
-        
-        if any(keyword in message_lower for keyword in concise_keywords):
-            return int(base_length * 0.7)  # Decrease by 30% for concise requests
-        
-        return base_length
-    
     async def query_gemini(self, prompt: str, max_tokens: int = 500) -> str:
         """Query Gemini LLM via Google Generative AI API with improved truncation handling"""
         if not self.model:
@@ -198,10 +209,10 @@ class SuperannuationChatRouter:
         try:
             # Configure generation parameters for response length control
             generation_config = genai.types.GenerationConfig(
-                max_output_tokens=max_tokens,  # Control response length
-                temperature=0.5,               # Creativity level
-                top_p=0.8,                     # Nucleus sampling
-                top_k=40                       # Top-k sampling
+                max_output_tokens=max_tokens,
+                temperature=0.5,
+                top_p=0.8,
+                top_k=40
             )
             
             # Generate content using Gemini with length control
@@ -249,25 +260,20 @@ class SuperannuationChatRouter:
         cleaned = response
         
         # Remove any leftover regex patterns or escaped characters (more comprehensive)
-        cleaned = re.sub(r'\\[a-zA-Z]', '', cleaned)  # Remove escaped characters
-        cleaned = re.sub(r'\\[0-9]', '', cleaned)     # Remove escaped numbers
-        cleaned = re.sub(r'\\[^a-zA-Z0-9]', '', cleaned)  # Remove other escaped chars
-        cleaned = re.sub(r'\{[^}]*\}', '', cleaned)    # Remove any remaining {} patterns
-        cleaned = re.sub(r'\[[^\]]*\]', '', cleaned)  # Remove any remaining [] patterns
-        cleaned = re.sub(r'\([^)]*\)', '', cleaned)   # Remove parentheses content
-        cleaned = re.sub(r'<[^>]*>', '', cleaned)      # Remove HTML-like tags
-        cleaned = re.sub(r'&[a-zA-Z]+;', '', cleaned) # Remove HTML entities
+        cleaned = re.sub(r'\\[a-zA-Z]', '', cleaned)
+        cleaned = re.sub(r'\\[0-9]', '', cleaned)
+        cleaned = re.sub(r'\\[^a-zA-Z0-9]', '', cleaned)
+        cleaned = re.sub(r'\{[^}]*\}', '', cleaned)
+        cleaned = re.sub(r'\[[^\]]*\]', '', cleaned)
+        cleaned = re.sub(r'\([^)]*\)', '', cleaned)
+        cleaned = re.sub(r'<[^>]*>', '', cleaned)
+        cleaned = re.sub(r'&[a-zA-Z]+;', '', cleaned)
         
         # Remove specific artifacts that appear in responses
         cleaned = re.sub(r'USER\'S SPECIFIC QUESTION:.*', '', cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r'FOCUS ON.*', '', cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r'INSTRUCTIONS:.*', '', cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r'COMPREHENSIVE USER PROFILE:.*', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'RISK ANALYSIS:.*', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'CONTRIBUTION ANALYSIS:.*', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'RETIREMENT PROJECTION ANALYSIS:.*', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'PEER GROUP ANALYSIS:.*', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'FINANCIAL HEALTH OVERVIEW:.*', '', cleaned, flags=re.IGNORECASE)
         
         # Remove any remaining asterisks from text (convert **text** to text)
         cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)
@@ -276,54 +282,24 @@ class SuperannuationChatRouter:
         cleaned = re.sub(r'^.*?(?=Summary|Hello|Based on)', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
         
         # Fix common truncation issues
-        # If response ends abruptly without proper punctuation, try to complete it
         if cleaned and not cleaned.endswith(('.', '!', '?', ':', ';', '...')):
-            # Check if it looks like it was cut off mid-sentence
             last_sentence = cleaned.split('.')[-1].strip()
             if len(last_sentence) > 10 and not any(punct in last_sentence for punct in ['!', '?', ':', ';']):
-                # Add ellipsis to indicate continuation
                 cleaned += "..."
         
         # Remove excessive whitespace but preserve paragraph breaks
-        cleaned = re.sub(r'[ \t]+', ' ', cleaned)  # Multiple spaces/tabs to single space
-        cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)  # Multiple newlines to double newline
+        cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+        cleaned = re.sub(r'\n\s*\n\s*\n+', '\n\n', cleaned)
         
         return cleaned.strip()
-    
-    def create_table(self, headers: List[str], rows: List[List[str]]) -> str:
-        """Create a formatted table for display in the chat"""
-        if not headers or not rows:
-            return ""
-        
-        # Create header row
-        header_row = "| " + " | ".join(headers) + " |"
-        
-        # Create separator row
-        separator = "|" + "|".join(["-" * (len(h) + 2) for h in headers]) + "|"
-        
-        # Create data rows
-        data_rows = []
-        for row in rows:
-            if len(row) == len(headers):
-                data_row = "| " + " | ".join([str(cell) for cell in row]) + " |"
-                data_rows.append(data_row)
-        
-        return "\n".join([header_row, separator] + data_rows)
     
     def prettify_response(self, response: str) -> str:
         """Post-process response for better formatting and readability with truncation handling"""
         import re
         
-        # First, clean up any remaining artifacts (comprehensive cleaning)
-        response = re.sub(r'\\[a-zA-Z0-9]', '', response)  # Remove escaped characters and numbers
-        response = re.sub(r'\\[^a-zA-Z0-9]', '', response)  # Remove other escaped chars
-        response = re.sub(r'\{[^}]*\}', '', response)    # Remove {} patterns
-        response = re.sub(r'\[[^\]]*\]', '', response)    # Remove [] patterns
-        response = re.sub(r'\([^)]*\)', '', response)     # Remove parentheses content
-        response = re.sub(r'<[^>]*>', '', response)       # Remove HTML-like tags
-        response = re.sub(r'&[a-zA-Z]+;', '', response)   # Remove HTML entities
-        
-        # Remove asterisks from text (convert **text** to text)
+        # First, clean up any remaining artifacts
+        response = re.sub(r'\\[a-zA-Z0-9]', '', response)
+        response = re.sub(r'\\[^a-zA-Z0-9]', '', response)
         response = re.sub(r'\*\*([^*]+)\*\*', r'\1', response)
         
         lines = response.split('\n')
@@ -332,17 +308,15 @@ class SuperannuationChatRouter:
         for i, line in enumerate(lines):
             line = line.strip()
             if not line:
-                # Skip empty lines
                 continue
             
-            # Handle section headings (remove asterisks and ensure proper spacing)
+            # Handle section headings
             if line.startswith('**') and line.endswith('**'):
-                # Remove asterisks to create plain text heading
                 heading = line[2:-2].strip()
                 if formatted_lines and formatted_lines[-1].strip():
                     formatted_lines.append('')
                 formatted_lines.append(heading)
-                formatted_lines.append('')  # Add blank line after heading
+                formatted_lines.append('')
             
             # Ensure numbered points start on new lines with proper spacing
             elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')):
@@ -354,109 +328,26 @@ class SuperannuationChatRouter:
             elif line.startswith(('-', '•', '*')):
                 if formatted_lines and formatted_lines[-1].strip():
                     formatted_lines.append('')
-                # Ensure bullet points are properly formatted
                 if line.startswith('*') and not line.startswith('**'):
-                    line = '- ' + line[1:].strip()  # Convert * to - for consistency
+                    line = '- ' + line[1:].strip()
                 formatted_lines.append(line)
             
             else:
                 formatted_lines.append(line)
         
-        # Join lines and normalize spacing
         result = '\n'.join(formatted_lines)
-        
-        # Collapse excessive blank lines (more than 2 consecutive)
         result = re.sub(r'\n\n\n+', '\n\n', result)
         
-        # Final cleanup - remove any remaining artifacts (comprehensive)
-        result = re.sub(r'USER\'S SPECIFIC QUESTION:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'FOCUS ON.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'INSTRUCTIONS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'COMPREHENSIVE USER PROFILE:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'RISK ANALYSIS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'CONTRIBUTION ANALYSIS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'RETIREMENT PROJECTION ANALYSIS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'PEER GROUP ANALYSIS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'FINANCIAL HEALTH OVERVIEW:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'SIMULATION RESULTS.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'PERFORMANCE METRICS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'COMPARATIVE INSIGHTS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'INFLATION CONSIDERATIONS:.*', '', result, flags=re.IGNORECASE)
-        result = re.sub(r'RETIREMENT READINESS INDICATORS:.*', '', result, flags=re.IGNORECASE)
-        
-        # Handle truncation - if response seems cut off, add indication
-        if result and not result.endswith(('.', '!', '?', ':', ';', '...')):
-            # Check if the last sentence is incomplete
-            last_sentence = result.split('.')[-1].strip()
-            if len(last_sentence) > 15 and not any(punct in last_sentence for punct in ['!', '?', ':', ';']):
-                result += "..."
-        
-        # Final formatting pass to ensure proper spacing
-        result = self.finalize_formatting(result)
-        
         return result.strip()
-    
-    def finalize_formatting(self, response: str) -> str:
-        """Final formatting pass to ensure proper spacing and structure"""
-        import re
-        
-        lines = response.split('\n')
-        formatted_lines = []
-        
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Handle section headings (remove asterisks and ensure proper spacing)
-            if line.startswith('**') and line.endswith('**'):
-                # Remove asterisks to create plain text heading
-                heading = line[2:-2].strip()
-                if formatted_lines and formatted_lines[-1].strip():
-                    formatted_lines.append('')
-                formatted_lines.append(heading)
-                # Add blank line after
-                formatted_lines.append('')
-            
-            # Ensure bullet points are properly formatted
-            elif line.startswith(('*', '-', '•')):
-                # Convert * to - for consistency (unless it's **bold**)
-                if line.startswith('*') and not line.startswith('**'):
-                    line = '- ' + line[1:].strip()
-                elif line.startswith('•'):
-                    line = '- ' + line[1:].strip()
-                elif line.startswith('-') and not line.startswith('- '):
-                    line = '- ' + line[1:].strip()
-                
-                formatted_lines.append(line)
-            
-            # Ensure numbered points are properly formatted
-            elif re.match(r'^\d+\.', line):
-                if not re.match(r'^\d+\. ', line):
-                    line = re.sub(r'^(\d+)\.', r'\1. ', line)
-                formatted_lines.append(line)
-            
-            else:
-                formatted_lines.append(line)
-        
-        # Join and clean up spacing
-        result = '\n'.join(formatted_lines)
-        
-        # Ensure proper spacing around sections
-        result = re.sub(r'\n\n\n+', '\n\n', result)  # Max 2 consecutive newlines
-        
-        return result
     
     def is_response_complete(self, response: str) -> bool:
         """Check if the response appears to be complete or truncated"""
         if not response:
             return False
         
-        # Check for proper ending punctuation
         if response.endswith(('.', '!', '?', ':', ';')):
             return True
         
-        # Check for common completion patterns
         completion_patterns = [
             "encouragement statement",
             "next steps",
@@ -472,7 +363,6 @@ class SuperannuationChatRouter:
         if any(pattern in response_lower for pattern in completion_patterns):
             return True
         
-        # Check if response seems to end mid-sentence
         last_sentence = response.split('.')[-1].strip()
         if len(last_sentence) > 20 and not any(punct in last_sentence for punct in ['!', '?', ':', ';']):
             return False
@@ -482,25 +372,34 @@ class SuperannuationChatRouter:
     async def get_user_context(self, user_id: str) -> Dict[str, Any]:
         """Get comprehensive user context from ML models with validation"""
         try:
-            # Get user profile
+            # Get user profile - includes ALL fields from the database
             user_profile = self.inference_engine.get_user_profile(user_id)
             
-            # Get ML predictions
+            # Get basic ML predictions
             risk_pred = self.inference_engine.predict_risk_tolerance(user_id)
             segment = self.inference_engine.get_user_segment(user_id)
             projection = self.inference_engine.predict_pension_projection(user_id)
             summary = self.inference_engine.get_summary_stats(user_id)
+            
+            # Get advanced ML predictions from IntegratedMLPipeline
+            advanced_analysis = {}
+            try:
+                advanced_analysis = self.advanced_ml_pipeline.get_comprehensive_user_analysis(user_id)
+            except Exception as e:
+                logger.warning(f"Could not get advanced ML analysis: {e}")
             
             raw_context = {
                 "profile": user_profile,
                 "risk_prediction": risk_pred,
                 "segment": segment,
                 "projection": projection,
-                "summary": summary
+                "summary": summary,
+                "advanced_ml": advanced_analysis  # Add all advanced ML outputs
             }
             
             # Validate and clean the ML data
             validated_context = self.validate_ml_data(raw_context)
+            validated_context["advanced_ml"] = advanced_analysis  # Keep advanced ML data
             
             # Log confidence levels for monitoring
             confidence = self.safe_get(risk_pred, "confidence", 0.0)
@@ -527,10 +426,28 @@ class SuperannuationChatRouter:
             return "projection"
         else:
             return "general"
-       
+    
+    async def handle_greeting(self, user_id: str, message: str) -> str:
+        """Handle simple greetings with a brief, friendly response"""
+        greeting_prompt = f"""
+        {GREETING_PROMPT}
+        
+        User's greeting: "{message}"
+        
+        Respond naturally and briefly. Keep it under 2 sentences.
+        """
+        
+        # Use very short token limit for greetings
+        return await self.query_gemini(greeting_prompt, max_tokens=150)
+    
     async def route_query(self, user_id: str, message: str) -> str:
-        """Unified routing function that handles ALL queries through a single intelligent prompt"""
+        """Unified routing function that handles ALL queries through appropriate handlers"""
         try:
+            # Check if it's just a simple greeting
+            if self.is_simple_greeting(message):
+                return await self.handle_greeting(user_id, message)
+            
+            # For all other queries, get full context and use unified handler
             context = await self.get_user_context(user_id)
             if "error" in context:
                 return f"I couldn't retrieve your information: {context['error']}"
@@ -542,21 +459,15 @@ class SuperannuationChatRouter:
             return f"I'm sorry, I encountered an error processing your request: {str(e)}"
 
     async def handle_unified_query(self, user_id: str, message: str, context: Dict[str, Any]) -> str:
-        """Handle all queries with a single intelligent prompt"""
+        """Handle all queries with a single intelligent prompt that includes ALL ML data"""
         user_profile = context["profile"]
         summary = context["summary"]
         projection = context["projection"]
         risk_data = context["risk_prediction"]
         segment = context["segment"]
+        advanced_ml = context.get("advanced_ml", {})
         
-        # Get advanced ML analysis
-        try:
-            advanced_analysis = self.advanced_ml_pipeline.get_comprehensive_user_analysis(user_id)
-        except Exception as e:
-            logger.warning(f"Could not get advanced ML analysis: {e}")
-            advanced_analysis = {}
-        
-        # Calculate key metrics for tables
+        # Extract ALL fields from user profile for comprehensive context
         age = self.safe_get(user_profile, 'Age', 0)
         monthly_contrib = self.safe_get(user_profile, 'Contribution_Amount', 0)
         annual_income = self.safe_get(user_profile, 'Annual_Income', 0)
@@ -570,22 +481,24 @@ class SuperannuationChatRouter:
         avg_savings = self.safe_get(peer_stats, 'avg_savings', 0)
         avg_contrib = self.safe_get(peer_stats, 'avg_contribution', 0)
         
-        # Advanced ML metrics
-        financial_health = self.safe_get(advanced_analysis, 'financial_health', {})
-        churn_risk = self.safe_get(advanced_analysis, 'churn_risk', {})
-        anomaly_detection = self.safe_get(advanced_analysis, 'anomaly_detection', {})
-        fund_recommendations = self.safe_get(advanced_analysis, 'fund_recommendations', {})
-        monte_carlo = self.safe_get(advanced_analysis, 'monte_carlo_simulation', {})
-        peer_matching = self.safe_get(advanced_analysis, 'peer_matching', {})
-        portfolio_optimization = self.safe_get(advanced_analysis, 'portfolio_optimization', {})
+        # Advanced ML metrics - Extract all available outputs
+        financial_health = self.safe_get(advanced_ml, 'financial_health', {})
+        churn_risk = self.safe_get(advanced_ml, 'churn_risk', {})
+        anomaly_detection = self.safe_get(advanced_ml, 'anomaly_detection', {})
+        fund_recommendations = self.safe_get(advanced_ml, 'fund_recommendations', {})
+        monte_carlo = self.safe_get(advanced_ml, 'monte_carlo_simulation', {})
+        peer_matching = self.safe_get(advanced_ml, 'peer_matching', {})
+        portfolio_optimization = self.safe_get(advanced_ml, 'portfolio_optimization', {})
         
         unified_prompt = f"""
         {SHARED_PROMPT_INSTRUCTIONS}
         
-        You are an expert superannuation advisor. The user will ask you questions ranging from simple greetings to complex financial advice. Handle each appropriately.
-        
-        For greetings (hi, hello, etc.): Respond warmly and briefly, then ask how you can help.
-        For financial questions: Provide comprehensive, personalized advice using their data.
+        You are an expert superannuation advisor with access to comprehensive ML analysis. Provide personalized advice using ALL available data.
+
+        CRITICAL SCOPE RESTRICTION:
+        - ONLY answer questions about superannuation, retirement planning, investments, financial planning, pensions, and personal finance
+        - For ANY non-financial questions (sports, weather, general knowledge, entertainment, technology unrelated to finance, etc.), respond EXACTLY with: "I'm specialized in superannuation and financial planning. I can help you with questions about your retirement savings, investment strategies, contribution advice, or any other financial planning matters. What would you like to know about your superannuation?"
+        - Do NOT attempt to answer or engage with non-financial topics in any way
         
         IMPORTANT: When relevant to the user's question, include formatted tables using this exact format:
         
@@ -594,94 +507,167 @@ class SuperannuationChatRouter:
         | Data 1   | Data 2   | Data 3   |
         | Data 4   | Data 5   | Data 6   |
         
-        USER PROFILE:
+        COMPREHENSIVE USER PROFILE:
         - Name: {self.safe_get(user_profile, 'Name', user_id)}
         - Age: {age}
+        - Gender: {self.safe_get(user_profile, 'Gender', 'Not specified')}
+        - Country: {self.safe_get(user_profile, 'Country', 'Not specified')}
         - Annual Income: ${annual_income:,.0f}
         - Current Savings: ${current_savings:,.0f}
         - Monthly Contribution: ${monthly_contrib:,.0f}
+        - Employer Contribution: ${self.safe_get(user_profile, 'Employer_Contribution', 0):,.0f}
+        - Years Contributed: {self.safe_get(user_profile, 'Years_Contributed', 0)}
         - Risk Tolerance: {self.safe_get(user_profile, 'Risk_Tolerance', 'Unknown')}
         - Investment Type: {self.safe_get(user_profile, 'Investment_Type', 'Unknown')}
+        - Fund Name: {self.safe_get(user_profile, 'Fund_Name', 'Unknown')}
         - Insurance Coverage: {self.safe_get(user_profile, 'Insurance_Coverage', 'Not specified')}
         - Marital Status: {self.safe_get(user_profile, 'Marital_Status', 'Unknown')}
+        - Number of Dependents: {self.safe_get(user_profile, 'Number_of_Dependents', 0)}
         - Education Level: {self.safe_get(user_profile, 'Education_Level', 'Unknown')}
+        - Health Status: {self.safe_get(user_profile, 'Health_Status', 'Unknown')}
         - Employment Status: {self.safe_get(user_profile, 'Employment_Status', 'Unknown')}
-        - Projected Pension: ${projected_pension:,.0f}
+        - Home Ownership: {self.safe_get(user_profile, 'Home_Ownership_Status', 'Unknown')}
+        - Investment Experience: {self.safe_get(user_profile, 'Investment_Experience_Level', 'Unknown')}
+        - Financial Goals: {self.safe_get(user_profile, 'Financial_Goals', 'Not specified')}
+        - Pension Type: {self.safe_get(user_profile, 'Pension_Type', 'Unknown')}
+        - Withdrawal Strategy: {self.safe_get(user_profile, 'Withdrawal_Strategy', 'Unknown')}
+        - Debt Level: {self.safe_get(user_profile, 'Debt_Level', 'Unknown')}
+        - Contribution Frequency: {self.safe_get(user_profile, 'Contribution_Frequency', 'Unknown')}
+        - Portfolio Diversity Score: {self.safe_get(user_profile, 'Portfolio_Diversity_Score', 0):.2f}
+        - Savings Rate: {self.safe_get(user_profile, 'Savings_Rate', 0):.2%}
+        - Annual Return Rate: {self.safe_get(user_profile, 'Annual_Return_Rate', 0):.1f}%
+        - Volatility: {self.safe_get(user_profile, 'Volatility', 0):.1f}%
+        - Fees Percentage: {self.safe_get(user_profile, 'Fees_Percentage', 0):.2f}%
+        - Life Expectancy Estimate: {self.safe_get(user_profile, 'Life_Expectancy_Estimate', 85)} years
+        - Retirement Age Goal: {self.safe_get(user_profile, 'Retirement_Age_Goal', 65)} years
         - Years to Retirement: {years_to_retirement}
+        - Projected Pension: ${projected_pension:,.0f}
         - Monthly Retirement Income: ${self.safe_get(projection, 'monthly_income_at_retirement', 0):,.0f}
-        - Model Risk Prediction: {self.safe_get(risk_data, 'predicted_risk', 'Unknown')} (confidence: {self.safe_get(risk_data, 'confidence', 0):.1%})
         
-        ADVANCED ML INSIGHTS:
-        - Financial Health Score: {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 (Above {self.safe_get(financial_health, 'peer_percentile', 0):.0f}% of peers)
-        - Churn Risk: {self.safe_get(churn_risk, 'churn_probability', 0):.1%} ({self.safe_get(churn_risk, 'risk_level', 'Unknown')} risk)
-        - Anomaly Score: {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}% ({'Anomaly Detected' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal Activity'})
+        RISK ANALYSIS:
+        - Current Risk Level: {self.safe_get(risk_data, 'current_risk', 'Unknown')}
+        - Model Predicted Risk: {self.safe_get(risk_data, 'predicted_risk', 'Unknown')}
+        - Prediction Confidence: {self.safe_get(risk_data, 'confidence', 0):.1%}
+        
+        FINANCIAL HEALTH ANALYSIS (Advanced ML):
+        - Financial Health Score: {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100
+        - Health Status: {self.safe_get(financial_health, 'status', 'Unknown')}
+        - Key Recommendations: {', '.join(self.safe_get(financial_health, 'recommendations', [])[:3])}
+        
+        CHURN RISK ANALYSIS:
+        - Churn Probability: {self.safe_get(churn_risk, 'churn_probability', 0):.1%}
+        - Risk Level: {self.safe_get(churn_risk, 'risk_level', 'Unknown')}
+        - Retention Recommendations: {', '.join(self.safe_get(churn_risk, 'recommendations', [])[:2])}
+        
+        ANOMALY DETECTION:
+        - Anomaly Score: {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}%
+        - Status: {'Anomaly Detected' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal Activity'}
+        - Action Required: {self.safe_get(anomaly_detection, 'recommendations', ['Continue monitoring'])[0]}
+        
+        FUND RECOMMENDATIONS:
         - Current Fund: {self.safe_get(fund_recommendations, 'current_fund', 'Unknown')}
-        - Recommended Funds: {', '.join(self.safe_get(fund_recommendations, 'recommendations', [])[:3])}
-        - Monte Carlo Simulations: {self.safe_get(monte_carlo, 'simulations', 0)} scenarios
-        - Probability of Meeting Target: {self.safe_get(monte_carlo, 'probability_above_target', 0):.1%}
-        - Similar Peers Found: {self.safe_get(peer_matching, 'total_peers_found', 0)}
-        - Portfolio Sharpe Ratio: {self.safe_get(portfolio_optimization, 'portfolio_metrics', {}).get('sharpe_ratio', 0):.2f}
+        - Top 3 Recommended Funds: {', '.join(self.safe_get(fund_recommendations, 'recommendations', [])[:3])}
+        - Recommendation Basis: {self.safe_get(fund_recommendations, 'reasoning', 'Based on similar user profiles')}
         
-        PEER COMPARISON DATA:
-        - Peer Group Size: {self.safe_get(peer_stats, 'total_peers', 0)}
-        - Average Peer Savings: ${avg_savings:,.0f}
-        - Average Peer Income: ${self.safe_get(peer_stats, 'avg_income', 0):,.0f}
-        - Average Peer Contribution: ${avg_contrib:,.0f}
-        - Contribution Percentile: {self.safe_get(peer_stats, 'contribution_percentile', 0):.1f}%
+        MONTE CARLO SIMULATION RESULTS:
+        - Simulations Run: {self.safe_get(monte_carlo, 'simulations', 0)}
+        - Mean Projected Balance: ${self.safe_get(monte_carlo, 'mean_result', 0):,.0f}
+        - Median Projected Balance: ${self.safe_get(monte_carlo, 'median_result', 0):,.0f}
+        - 10th Percentile: ${self.safe_get(monte_carlo, 'percentile_10', 0):,.0f}
+        - 90th Percentile: ${self.safe_get(monte_carlo, 'percentile_90', 0):,.0f}
+        - Probability of Meeting Target: {self.safe_get(monte_carlo, 'probability_above_target', 0):.1%}
+        
+        PEER MATCHING ANALYSIS:
+        - Similar Peers Found: {self.safe_get(peer_matching, 'total_peers_found', 0)}
+        - Peer Average Age: {self.safe_get(peer_matching.get('peer_stats', {}), 'avg_age', 0):.0f}
+        - Peer Average Income: ${self.safe_get(peer_matching.get('peer_stats', {}), 'avg_income', 0):,.0f}
+        - Peer Average Savings: ${self.safe_get(peer_matching.get('peer_stats', {}), 'avg_savings', 0):,.0f}
+        - Peer Average Contribution: ${self.safe_get(peer_matching.get('peer_stats', {}), 'avg_contribution', 0):,.0f}
+        - Your Contribution Percentile: {self.safe_get(peer_stats, 'contribution_percentile', 0):.1f}%
+        
+        PORTFOLIO OPTIMIZATION:
+        - Expected Return: {self.safe_get(portfolio_optimization, 'expected_return', 0):.1f}%
+        - Expected Volatility: {self.safe_get(portfolio_optimization, 'expected_volatility', 0):.1f}%
+        - Risk Tolerance Used: {self.safe_get(portfolio_optimization, 'risk_tolerance', 'Unknown')}
+        - Optimized Allocation: {self.safe_get(portfolio_optimization, 'optimized_allocation', [])}
+        - Portfolio Recommendations: {', '.join(self.safe_get(portfolio_optimization, 'recommendations', [])[:3])}
         
         SUGGESTED TABLES FOR DIFFERENT QUESTION TYPES:
         
         For RISK questions, include:
-        | Metric | Current | Recommended |
-        |--------|---------|-------------|
-        | Risk Level | {self.safe_get(risk_data, 'current_risk', 'Unknown')} | {self.safe_get(risk_data, 'predicted_risk', 'Unknown')} |
-        | Age-Based Risk | - | {"High" if age < 35 else "Medium" if age < 50 else "Low"} |
-        | Model Confidence | - | {self.safe_get(risk_data, 'confidence', 0):.1%} |
-        | Years to Retire | - | {years_to_retirement} |
+        | Metric | Current | Recommended | ML Confidence |
+        |--------|---------|-------------|---------------|
+        | Risk Level | {self.safe_get(risk_data, 'current_risk', 'Unknown')} | {self.safe_get(risk_data, 'predicted_risk', 'Unknown')} | {self.safe_get(risk_data, 'confidence', 0):.1%} |
+        | Age-Based Risk | - | {"High" if age < 35 else "Medium" if age < 50 else "Low"} | - |
+        | Years to Retire | {years_to_retirement} | - | - |
+        | Portfolio Volatility | {self.safe_get(user_profile, 'Volatility', 0):.1f}% | - | - |
         
         For CONTRIBUTION questions, include:
-        | Contribution Type | Amount | % of Income |
-        |-------------------|--------|-------------|
-        | Current Monthly | ${monthly_contrib:,.0f} | {contribution_rate:.1f}% |
-        | Current Annual | ${monthly_contrib * 12:,.0f} | {contribution_rate:.1f}% |
-        | Recommended Min | ${annual_income * 0.095:,.0f} | 9.5% |
-        | Optimal Target | ${annual_income * 0.12:,.0f} | 12.0% |
+        | Contribution Analysis | Current | Recommended | Peer Average |
+        |----------------------|---------|-------------|--------------|
+        | Monthly Amount | ${monthly_contrib:,.0f} | ${annual_income * 0.12 / 12:,.0f} | ${avg_contrib / 12:,.0f} |
+        | Annual Amount | ${monthly_contrib * 12:,.0f} | ${annual_income * 0.12:,.0f} | ${avg_contrib:,.0f} |
+        | % of Income | {contribution_rate:.1f}% | 12.0% | {avg_contrib/self.safe_get(peer_stats, 'avg_income', 1)*100:.1f}% |
+        | Employer Match | ${self.safe_get(user_profile, 'Employer_Contribution', 0):,.0f} | - | - |
         
         For PEER COMPARISON questions, include:
-        | Metric | You | Peer Average | Performance |
-        |--------|-----|--------------|-------------|
-        | Savings | ${current_savings:,.0f} | ${avg_savings:,.0f} | {current_savings/avg_savings*100 if avg_savings > 0 else 0:.0f}% |
-        | Contributions | ${monthly_contrib * 12:,.0f} | ${avg_contrib:,.0f} | {(monthly_contrib * 12)/avg_contrib*100 if avg_contrib > 0 else 0:.0f}% |
+        | Metric | You | Peer Average | Your Percentile |
+        |--------|-----|--------------|-----------------|
+        | Age | {age} | {self.safe_get(peer_stats, 'avg_age', 0):.0f} | - |
+        | Income | ${annual_income:,.0f} | ${self.safe_get(peer_stats, 'avg_income', 0):,.0f} | - |
+        | Savings | ${current_savings:,.0f} | ${avg_savings:,.0f} | - |
+        | Contributions | ${monthly_contrib * 12:,.0f} | ${avg_contrib:,.0f} | {self.safe_get(peer_stats, 'contribution_percentile', 0):.0f}% |
+        | Financial Health | {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 | - | Top {100-self.safe_get(financial_health, 'peer_percentile', 50):.0f}% |
         
         For FINANCIAL HEALTH questions, include:
-        | Health Metric | Score | Status | Peer Percentile |
-        |---------------|-------|--------|-----------------|
-        | Financial Health | {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 | {self.safe_get(financial_health, 'status', 'Unknown')} | {self.safe_get(financial_health, 'peer_percentile', 0):.0f}% |
-        | Churn Risk | {self.safe_get(churn_risk, 'churn_probability', 0):.1%} | {self.safe_get(churn_risk, 'risk_level', 'Unknown')} | - |
-        | Anomaly Score | {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}% | {'Anomaly' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal'} | - |
+        | Health Metric | Score/Value | Status | ML Insight |
+        |---------------|-------------|--------|------------|
+        | Overall Health | {self.safe_get(financial_health, 'financial_health_score', 0):.0f}/100 | {self.safe_get(financial_health, 'status', 'Unknown')} | Top {100-self.safe_get(financial_health, 'peer_percentile', 50):.0f}% of peers |
+        | Churn Risk | {self.safe_get(churn_risk, 'churn_probability', 0):.1%} | {self.safe_get(churn_risk, 'risk_level', 'Unknown')} | {self.safe_get(churn_risk, 'recommendations', ['Monitor engagement'])[0]} |
+        | Anomaly Detection | {self.safe_get(anomaly_detection, 'anomaly_percentage', 0):.1f}% | {'Alert' if self.safe_get(anomaly_detection, 'is_anomaly', False) else 'Normal'} | {self.safe_get(anomaly_detection, 'recommendations', ['Continue monitoring'])[0]} |
+        | Savings Rate | {self.safe_get(user_profile, 'Savings_Rate', 0):.1%} | {"Good" if self.safe_get(user_profile, 'Savings_Rate', 0) > 0.1 else "Needs Improvement"} | - |
         
         For FUND RECOMMENDATION questions, include:
-        | Fund Type | Current | Recommended | Reason |
-        |-----------|---------|-------------|--------|
-        | Current Fund | {self.safe_get(fund_recommendations, 'current_fund', 'Unknown')} | - | Your current choice |
-        | Top Recommendation | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[0] if self.safe_get(fund_recommendations, 'recommendations', []) else 'None'} | {self.safe_get(fund_recommendations, 'reasoning', 'Based on similar users')} |
-        | Alternative 1 | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[1] if len(self.safe_get(fund_recommendations, 'recommendations', [])) > 1 else 'None'} | Diversification |
-        | Alternative 2 | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[2] if len(self.safe_get(fund_recommendations, 'recommendations', [])) > 2 else 'None'} | Risk optimization |
+        | Fund Analysis | Current | ML Recommended | Expected Return | Risk Level |
+        |---------------|---------|----------------|-----------------|------------|
+        | Your Fund | {self.safe_get(fund_recommendations, 'current_fund', 'Unknown')} | - | {self.safe_get(user_profile, 'Annual_Return_Rate', 0):.1f}% | {self.safe_get(user_profile, 'Risk_Tolerance', 'Unknown')} |
+        | Top Pick | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[0] if self.safe_get(fund_recommendations, 'recommendations', []) else 'None'} | - | Based on profile |
+        | Alternative 1 | - | {self.safe_get(fund_recommendations, 'recommendations', ['None'])[1] if len(self.safe_get(fund_recommendations, 'recommendations', [])) > 1 else 'None'} | - | Diversification |
+        | Similar Users | - | {self.safe_get(fund_recommendations, 'similar_users_count', 0)} users | - | - |
         
-        For MONTE CARLO questions, include:
-        | Scenario | Retirement Balance | Probability |
-        |----------|-------------------|-------------|
-        | Conservative (10th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p10', 0):,.0f} | 10% |
-        | Moderate (50th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p50', 0):,.0f} | 50% |
-        | Optimistic (90th percentile) | ${self.safe_get(monte_carlo, 'percentiles', {}).get('p90', 0):,.0f} | 90% |
-        | Target Achievement | - | {self.safe_get(monte_carlo, 'probability_above_target', 0):.1%} |
+        For MONTE CARLO/PROJECTION questions, include:
+        | Retirement Scenario | Balance at {self.safe_get(user_profile, 'Retirement_Age_Goal', 65)} | Monthly Income | Probability |
+        |--------------------|------------------------|----------------|-------------|
+        | Conservative (P10) | ${self.safe_get(monte_carlo, 'percentile_10', 0):,.0f} | ${self.safe_get(monte_carlo, 'percentile_10', 0)/240:,.0f} | 90% chance above |
+        | Expected (P50) | ${self.safe_get(monte_carlo, 'median_result', 0):,.0f} | ${self.safe_get(monte_carlo, 'median_result', 0)/240:,.0f} | 50% chance above |
+        | Optimistic (P90) | ${self.safe_get(monte_carlo, 'percentile_90', 0):,.0f} | ${self.safe_get(monte_carlo, 'percentile_90', 0)/240:,.0f} | 10% chance above |
+        | Target Achievement | ${projected_pension:,.0f} | ${self.safe_get(projection, 'monthly_income_at_retirement', 0):,.0f} | {self.safe_get(monte_carlo, 'probability_above_target', 0):.0f}% |
+        
+        For PORTFOLIO OPTIMIZATION questions, include:
+        | Portfolio Metrics | Current | Optimized | Improvement |
+        |------------------|---------|-----------|-------------|
+        | Expected Return | {self.safe_get(user_profile, 'Annual_Return_Rate', 0):.1f}% | {self.safe_get(portfolio_optimization, 'expected_return', 0):.1f}% | {self.safe_get(portfolio_optimization, 'expected_return', 0) - self.safe_get(user_profile, 'Annual_Return_Rate', 0):.1f}% |
+        | Volatility | {self.safe_get(user_profile, 'Volatility', 0):.1f}% | {self.safe_get(portfolio_optimization, 'expected_volatility', 0):.1f}% | {self.safe_get(portfolio_optimization, 'expected_volatility', 0) - self.safe_get(user_profile, 'Volatility', 0):.1f}% |
+        | Sharpe Ratio | - | {self.safe_get(portfolio_optimization.get('portfolio_metrics', {}), 'sharpe_ratio', 0):.2f} | - |
+        | Risk Level | {self.safe_get(user_profile, 'Risk_Tolerance', 'Unknown')} | {self.safe_get(portfolio_optimization, 'risk_tolerance', 'Unknown')} | Match |
         
         USER'S QUESTION: "{message}"
         
-        Based on the question, provide relevant advice and include appropriate tables when they add value. Always use the exact table format shown above with proper markdown syntax.
+        INSTRUCTIONS:
+        1. If this is a simple greeting, respond briefly and warmly (1-2 sentences max)
+        2. For financial questions, use ALL the ML model outputs above to provide comprehensive, personalized advice
+        3. Include relevant tables from the suggestions above when they add value
+        4. Reference specific ML predictions with confidence levels when available
+        5. Use the exact table format shown with proper markdown syntax
+        6. Be specific with numbers, percentages, and recommendations from the ML models
         """
         
-        # Simple length adjustment
-        base_length = 600 if len(message.split()) < 5 else 1200
+        # Adjust response length based on query type
+        intent = self.parse_query_intent(message)
+        base_length = self.base_response_lengths.get(intent, 900)
+        
+        # If it's a very short message but not a greeting, still provide reasonable detail
+        if len(message.split()) < 5 and intent != "greeting":
+            base_length = 600
         
         return await self.query_gemini(unified_prompt, base_length)
