@@ -8,6 +8,17 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libffi-dev \
     libssl-dev \
+    libasound2 \
+    libasound2-dev \
+    libgomp1 \
+    libcurl4 \
+    ca-certificates \
+    libuuid1 \
+    libkrb5-3 \
+    zlib1g \
+    libglib2.0-0 \
+    libnss3 \
+    libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
