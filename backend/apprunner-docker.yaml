@@ -1,0 +1,11 @@
+version: 1.0
+runtime: docker
+build:
+  commands:
+    build:
+      - echo "Building Docker image..."
+      - docker build -t my-app .
+run:
+  command: docker run -p 8000:8000 my-app
+  network:
+    port: 8000
