@@ -6,8 +6,8 @@ import os
 from sklearn.ensemble import RandomForestRegressor, IsolationForest
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split, ParameterGrid, GridSearchCV
+from sklearn.metrics import accuracy_score, r2_score
 import xgboost as xgb
 from scipy.optimize import minimize
 import warnings
@@ -218,14 +218,73 @@ class AdvancedMLModels:
 
         self.df['Churn_Risk'] = self.df.apply(create_churn_label, axis=1)
         churn_data = self.df[churn_features + ['Churn_Risk']].dropna()
+        
+        # Check if we have any positive cases
+        positive_cases = churn_data['Churn_Risk'].sum()
+        total_cases = len(churn_data)
+        
+        print(f"Churn cases: {positive_cases}/{total_cases} ({positive_cases/total_cases*100:.1f}%)")
+        
+        if positive_cases == 0:
+            print("No positive churn cases found, creating synthetic cases...")
+            # Create some synthetic positive cases for training
+            n_synthetic = min(3, len(churn_data)//3)  # Create at least 3 synthetic cases
+            if n_synthetic < 1:
+                n_synthetic = 1
+            
+            # Make a proper copy and modify it
+            churn_data = churn_data.copy()
+            synthetic_indices = churn_data.sample(n_synthetic, random_state=42).index
+            churn_data.loc[synthetic_indices, 'Churn_Risk'] = 1
+            
+            positive_cases = churn_data['Churn_Risk'].sum()
+            print(f"Added {n_synthetic} synthetic cases. New total: {positive_cases}/{len(churn_data)}")
+
         X = churn_data[churn_features]
         y = churn_data['Churn_Risk']
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        xgb_model = xgb.XGBClassifier(n_estimators=100, random_state=42)
-        xgb_model.fit(X_train, y_train)
-        y_pred = xgb_model.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        print(f"Churn Risk model accuracy: {accuracy:.3f}")
+
+        # Verify we have positive cases before training
+        if y.sum() == 0:
+            print("ERROR: Still no positive cases after synthetic generation. Skipping churn model training.")
+            return None
+
+        print(f"Final verification - Positive cases: {y.sum()}/{len(y)} ({y.mean()*100:.1f}%)")
+        
+        # Only split if we have enough data
+        if len(churn_data) > 10:
+            # Check if we have enough samples for stratified split
+            min_class_count = min(churn_data['Churn_Risk'].value_counts())
+            
+            if min_class_count >= 2:  # Need at least 2 samples per class for stratified split
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+            else:
+                # Use regular split without stratification
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            
+            # Configure XGBoost with explicit parameters to avoid the base_score issue
+            xgb_model = xgb.XGBClassifier(
+                n_estimators=100, 
+                random_state=42,
+                objective='binary:logistic',
+                eval_metric='logloss',
+                use_label_encoder=False
+            )
+            xgb_model.fit(X_train, y_train)
+            y_pred = xgb_model.predict(X_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            print(f"Churn Risk model accuracy: {accuracy:.3f}")
+        else:
+            # Use all data for training if dataset is small
+            xgb_model = xgb.XGBClassifier(
+                n_estimators=100, 
+                random_state=42,
+                objective='binary:logistic',
+                eval_metric='logloss',
+                use_label_encoder=False
+            )
+            xgb_model.fit(X, y)
+            print("Churn Risk model trained on full dataset (small sample)")
+        
         self.models['churn_risk'] = xgb_model
         joblib.dump(xgb_model, f'{self.models_dir}/churn_risk_model.pkl')
         return xgb_model
@@ -234,12 +293,34 @@ class AdvancedMLModels:
         print("Training Anomaly Detection model...")
         anomaly_features = ['Transaction_Amount','Transaction_Pattern_Score','Anomaly_Score','Annual_Income','Contribution_Amount','Current_Savings','Portfolio_Diversity_Score','Savings_Rate']
         anomaly_data = self.df[anomaly_features].dropna()
-        iso_forest = IsolationForest(contamination=0.1, random_state=42)
-        iso_forest.fit(anomaly_data)
-        self.models['anomaly_detection'] = iso_forest
-        joblib.dump(iso_forest, f'{self.models_dir}/anomaly_detection_model.pkl')
-        print(f"Anomaly Detection model trained on {len(anomaly_data)} samples")
-        return iso_forest
+
+        # Scale features
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(anomaly_data)
+
+        # Simple parameter sweep targeting a desired contamination rate ~8%
+        param_grid = {
+            'contamination': [0.05, 0.08, 0.1],
+            'n_estimators': [100, 200],
+            'max_samples': ['auto', 0.8],
+            'max_features': [0.8, 1.0]
+        }
+
+        best_model = None
+        best_score = -np.inf
+        for params in ParameterGrid(param_grid):
+            model = IsolationForest(random_state=42, **params)
+            preds = model.fit_predict(X_scaled)
+            anomaly_rate = (preds == -1).mean()
+            score = -abs(anomaly_rate - 0.08)  # closer to 8% anomalies is better
+            if score > best_score:
+                best_score = score
+                best_model = model
+
+        self.models['anomaly_detection'] = {'model': best_model, 'scaler': scaler, 'features': anomaly_features}
+        joblib.dump(self.models['anomaly_detection'], f'{self.models_dir}/anomaly_detection_model.pkl')
+        print(f"Anomaly Detection model trained on {len(anomaly_data)} samples with best score {best_score:.4f}")
+        return self.models['anomaly_detection']
 
     def train_fund_recommendation_model(self):
         print("Training Fund Recommendation model...")
@@ -268,15 +349,82 @@ class AdvancedMLModels:
         print("Training Peer Matching model...")
         peer_features = ['Age','Annual_Income','Current_Savings','Contribution_Amount','Risk_Tolerance_encoded','Investment_Experience_Level_encoded','Portfolio_Diversity_Score','Savings_Rate','Years_Contributed']
         peer_data = self.df[peer_features + ['User_ID']].dropna()
-        X = peer_data[peer_features]
+        X = peer_data[peer_features].values
+
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-        knn_model = NearestNeighbors(n_neighbors=10, metric='euclidean')
-        knn_model.fit(X_scaled)
-        self.models['peer_matching'] = {'knn_model': knn_model,'scaler': scaler,'user_ids': peer_data['User_ID'].values,'features': peer_features}
+
+        metrics = ['euclidean', 'manhattan', 'cosine']
+        k_values = [3, 5, 7, 10, 15]
+        best_cfg = None
+        best_score = np.inf
+        best_knn = None
+
+        for metric in metrics:
+            for k in k_values:
+                knn = NearestNeighbors(n_neighbors=k, metric=metric)
+                knn.fit(X_scaled)
+                distances, _ = knn.kneighbors(X_scaled)
+                avg_dist = distances.mean()
+                if avg_dist < best_score:
+                    best_score = avg_dist
+                    best_cfg = {'metric': metric, 'k': k}
+                    best_knn = knn
+
+        self.models['peer_matching'] = {
+            'knn_model': best_knn,
+            'scaler': scaler,
+            'user_ids': peer_data['User_ID'].values,
+            'features': peer_features,
+            'config': best_cfg,
+            'avg_distance': float(best_score)
+        }
         joblib.dump(self.models['peer_matching'], f'{self.models_dir}/peer_matching_model.pkl')
-        print(f"Peer Matching model trained on {len(peer_data)} users")
+        print(f"Peer Matching model trained on {len(peer_data)} users with best cfg {best_cfg} (avg_dist={best_score:.4f})")
         return self.models['peer_matching']
+
+    def train_investment_recommendation_model(self):
+        """Train an investment recommendation/propensity regressor with engineered features."""
+        print("Training Investment Recommendation model (Random Forest)...")
+
+        df = self.df.copy()
+        # Basic engineered features (safe divisions)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            ratio = df['Current_Savings'] / df['Annual_Income']
+        df['Savings_Income_Ratio'] = np.nan_to_num(ratio, nan=0.0, posinf=0.0, neginf=0.0)
+        df['Age_Income_Interaction'] = (df['Age'] or 0) * (df['Annual_Income'] or 0) if isinstance(df, pd.Series) else df['Age'] * df['Annual_Income']
+        df['Financial_Stability'] = (df['Savings_Rate'] or 0) * (df['Portfolio_Diversity_Score'] or 0) if isinstance(df, pd.Series) else df['Savings_Rate'] * df['Portfolio_Diversity_Score']
+
+        target = 'Current_Savings'
+        # Use numeric features only
+        feature_cols = [c for c in df.columns if c != target and pd.api.types.is_numeric_dtype(df[c])]
+        X = df[feature_cols].fillna(0)
+        y = df[target].fillna(0)
+        y_log = np.log1p(y)
+
+        if len(X) < 10:
+            print("Not enough data to train investment recommendation model")
+            return None
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y_log, test_size=0.2, random_state=42)
+
+        param_grid = {
+            'n_estimators': [100, 200],
+            'max_depth': [10, 15, None],
+            'min_samples_split': [2, 5],
+            'min_samples_leaf': [1, 2],
+            'max_features': ['sqrt', 'log2']
+        }
+        rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+        grid = GridSearchCV(rf, param_grid, cv=3, scoring='r2', n_jobs=-1)
+        grid.fit(X_train, y_train)
+        model = grid.best_estimator_
+        r2 = r2_score(y_test, model.predict(X_test))
+
+        self.models['investment_recommendation'] = {'model': model, 'feature_cols': feature_cols, 'r2': float(r2)}
+        joblib.dump(self.models['investment_recommendation'], f'{self.models_dir}/investment_recommendation_model.pkl')
+        print(f"Investment Recommendation model trained (R^2={r2:.3f}) with best params: {grid.best_params_}")
+        return self.models['investment_recommendation']
 
     def train_portfolio_optimization_model(self):
         print("Training Portfolio Optimization model...")
@@ -302,6 +450,11 @@ class AdvancedMLModels:
         self.train_monte_carlo_model()
         self.train_peer_matching_model()
         self.train_portfolio_optimization_model()
+        # Optional: train investment recommendation regressor
+        try:
+            self.train_investment_recommendation_model()
+        except Exception as e:
+            print(f"Investment recommendation training skipped: {e}")
 
     # ----------------------
     # Prediction Methods
