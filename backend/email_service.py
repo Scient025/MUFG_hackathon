@@ -38,6 +38,10 @@ class EmailService:
         self.smtp_user = os.getenv("SMTP_USER", "")
         self.smtp_password = os.getenv("SMTP_PASSWORD", "")
         self.admin_email = os.getenv("ADMIN_EMAIL", "")
+        # Frontend base URL for CTA links
+        self.frontend_url = os.getenv(
+            "FRONTEND_URL", "https://mitsubishi-hackathon-finals.vercel.app/"
+        ).rstrip("/")
 
         # News API configuration
         self.news_api_key = os.getenv("NEWS_API_KEY", "your_news_api_key_here")
@@ -405,13 +409,13 @@ class EmailService:
                     </div>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                            <a href="http://localhost:8080/" class="cta-button" style="color: white;">View Your Dashboard</a>
+                            <a href="{{ frontend_url }}/" class="cta-button" style="color: white;">View Your Dashboard</a>
                     </div>
                 </div>
                 
                 <div class="footer">
                     <p>This is an automated update from MUFG Financial Services Unofficial.</p>
-                    <p>For personalized advice, please contact your financial advisor or visit our <a href="http://localhost:8080/">online portal</a>.</p>
+                    <p>For personalized advice, please contact your financial advisor or visit our <a href="{{ frontend_url }}/">online portal</a>.</p>
                     <p>© 2025 MUFG Financial Services. All rights reserved.</p>
                 </div>
             </div>
@@ -426,6 +430,7 @@ class EmailService:
             real_estate_news=news_data.get("real_estate", []),
             policy_news=news_data.get("policy_changes", []),
             general_news=news_data.get("general_news", []),
+            frontend_url=self.frontend_url,
         )
 
     def send_email(

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Search, User, LogIn, RefreshCw } from "lucide-react";
+import { API_BASE_URL } from "@/services/dataService";
 // Backend payload shape from /api/supabase/users (camelCase/lowercase)
 type BackendUser = {
   id: string;
@@ -42,7 +43,7 @@ export function UserSelectionPanel({ onUserSelect, onLoginAsUser }: UserSelectio
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/supabase/users');
+      const response = await fetch(`${API_BASE_URL}/supabase/users`);
       const result = await response.json();
       
       if (result.success) {

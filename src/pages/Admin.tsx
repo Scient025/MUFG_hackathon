@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "@/services/adminService";
 import { AdminLoginModal } from "@/components/auth/AdminLoginModal";
+import { API_BASE_URL } from "@/services/dataService";
 import { UserProfile } from "@/services/dataService";
 
 interface ExtendedUserProfile extends UserProfile {
@@ -54,7 +55,7 @@ export default function Admin() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/supabase/users');
+      const response = await fetch(`${API_BASE_URL}/supabase/users`);
       const result = await response.json();
       
       if (result.success) {

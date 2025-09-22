@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { SupabaseService } from "@/services/supabaseService";
+import { API_BASE_URL } from "@/services/dataService";
 
 import { LogOut, User, ArrowLeft } from "lucide-react";
 
@@ -75,7 +76,7 @@ export default function Dashboard() {
   const loadAdvancedMetrics = async (userId: string) => {
     try {
       console.log('Loading advanced metrics for userId:', userId);
-      const response = await fetch(`/api/advanced_analysis/${userId}`);
+      const response = await fetch(`${API_BASE_URL}/advanced_analysis/${userId}`);
       console.log('Advanced metrics response status:', response.status);
       const data = await response.json();
       console.log('Advanced metrics API response:', data);
@@ -236,12 +237,12 @@ export default function Dashboard() {
       console.log('Admin user data:', adminUser);
       console.log('Admin user Employer_Contribution:', adminUser.Employer_Contribution);
       console.log('Admin user Contribution_Amount:', adminUser.Contribution_Amount);
-      console.log('Admin user Anomaly_Score:', adminUser.Anomaly_Score);
+      // console.log('Admin user Anomaly_Score:', adminUser.Anomaly_Score);
       setCurrentUser(adminUser);
       
       // Get real projection data from ML API for admin user
       try {
-        const projectionResponse = await fetch(`/api/projection/${adminUser.User_ID}`);
+        const projectionResponse = await fetch(`${API_BASE_URL}/projection/${adminUser.User_ID}`);
         const projectionData = await projectionResponse.json();
         
         if (projectionData.success) {
@@ -329,7 +330,7 @@ export default function Dashboard() {
       
       // Get real peer comparison data from ML API for admin user
       try {
-        const peerResponse = await fetch(`/api/peer_stats/${adminUser.User_ID}`);
+        const peerResponse = await fetch(`${API_BASE_URL}/peer_stats/${adminUser.User_ID}`);
         const peerData = await peerResponse.json();
         
         if (peerData.success) {
@@ -343,10 +344,12 @@ export default function Dashboard() {
           
           if (peerStats.common_investment_types) {
             const totalPeers = peerStats.total_peers || 1;
-            Object.entries(peerStats.common_investment_types).forEach(([type, count]) => {
+            const commonTypes = peerStats.common_investment_types as Record<string, number>;
+            Object.entries(commonTypes).forEach(([type, count]) => {
+              const numericCount = Number(count) || 0;
               investmentTypes[type] = {
-                count: count,
-                percentage: Math.round((count / totalPeers) * 100)
+                count: numericCount,
+                percentage: Math.round((numericCount / totalPeers) * 100)
               };
             });
           }
@@ -412,7 +415,7 @@ export default function Dashboard() {
           
           // Get real projection data from ML API
           try {
-            const projectionResponse = await fetch(`/api/projection/${customUserId}`);
+            const projectionResponse = await fetch(`${API_BASE_URL}/projection/${customUserId}`);
             const projectionData = await projectionResponse.json();
             
             if (projectionData.success) {
@@ -500,7 +503,7 @@ export default function Dashboard() {
           
           // Get real peer comparison data from ML API
           try {
-            const peerResponse = await fetch(`/api/peer_stats/${customUserId}`);
+            const peerResponse = await fetch(`${API_BASE_URL}/peer_stats/${customUserId}`);
             const peerData = await peerResponse.json();
             
             if (peerData.success) {
@@ -512,15 +515,17 @@ export default function Dashboard() {
               console.log('Peer stats:', peerStats);
               console.log('Common investment types:', peerStats.common_investment_types);
               
-              if (peerStats.common_investment_types) {
-                const totalPeers = peerStats.total_peers || 1;
-                Object.entries(peerStats.common_investment_types).forEach(([type, count]) => {
-                  investmentTypes[type] = {
-                    count: count,
-                    percentage: Math.round((count / totalPeers) * 100)
-                  };
-                });
-              }
+            if (peerStats.common_investment_types) {
+              const totalPeers = peerStats.total_peers || 1;
+              const commonTypes = peerStats.common_investment_types as Record<string, number>;
+              Object.entries(commonTypes).forEach(([type, count]) => {
+                const numericCount = Number(count) || 0;
+                investmentTypes[type] = {
+                  count: numericCount,
+                  percentage: Math.round((numericCount / totalPeers) * 100)
+                };
+              });
+            }
               
               console.log('Processed investment types:', investmentTypes);
               
