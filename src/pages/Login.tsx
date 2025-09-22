@@ -111,8 +111,8 @@ export default function Landing() {
     },
     {
       icon: <Award className="h-6 w-6 text-green-600" />,
-      title: "Expert Guidance",
-      description: "Access professional advice tailored to your situation."
+      title: "AI Powered Guidance",
+      description: "Access advice tailored to your situation with the help of AI."
     },
     {
       icon: <Target className="h-6 w-6 text-purple-600" />,
@@ -159,7 +159,7 @@ export default function Landing() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
           {/* Left Column - Hero Text */}
           <div className="flex flex-col justify-center space-y-4">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-5xl font-bold text-gray-900">
               Take Control of Your <span className="text-blue-600">Financial Future</span>
             </h1>
             <p className="text-base text-gray-600">
@@ -228,8 +228,8 @@ export default function Landing() {
             <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="text-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-                  <p className="text-gray-600">Sign in to your SuperWise account</p>
+                  <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
+                  <p className="text-xl-gray-600">Sign in to your SuperWise account</p>
                 </div>
                 
                 {error && (
