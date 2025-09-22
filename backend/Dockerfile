@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libnss3 \
     libssl3 \
+    libunwind8 \
+    libstdc++6 \
+    libgcc-s1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

@@ -4,6 +4,7 @@ import os
 from typing import Any, Dict, Optional
 
 import azure.cognitiveservices.speech as speechsdk
+import requests
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
@@ -67,11 +68,51 @@ class AzureSpeechService:
                 return result.audio_data
             else:
                 logger.error(f"Speech synthesis failed: {result.reason}")
-                return None
+                # Fallback to REST
+                return self._rest_text_to_speech(text, voice_name)
 
         except Exception as e:
             logger.error(f"Error in text-to-speech: {e}")
+            # Fallback to REST pathway if SDK fails to initialize
+            try:
+                return self._rest_text_to_speech(text, voice_name)
+            except Exception as rest_err:
+                logger.error(f"REST TTS fallback failed: {rest_err}")
+                return None
+
+    def _rest_text_to_speech(self, text: str, voice_name: str) -> Optional[bytes]:
+        """Fallback TTS using Azure REST API (avoids native SDK deps)."""
+        if not self.speech_key or not self.speech_region:
             return None
+        # Get access token
+        token_url = f"https://{self.speech_region}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+        headers = {"Ocp-Apim-Subscription-Key": self.speech_key, "Content-Length": "0"}
+        resp = requests.post(token_url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        access_token = resp.text
+
+        # Build SSML
+        ssml = f"""
+        <speak version='1.0' xml:lang='en-AU'>
+          <voice name='{voice_name}'>
+            {text}
+          </voice>
+        </speak>
+        """.strip()
+
+        synthesis_url = f"https://{self.speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
+        synth_headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/ssml+xml",
+            # WAV/RIFF PCM 16kHz mono 16-bit to match frontend expectation
+            "X-Microsoft-OutputFormat": "riff-16khz-16bit-mono-pcm",
+            "User-Agent": "mufg-hackathon-app",
+        }
+        synth_resp = requests.post(
+            synthesis_url, headers=synth_headers, data=ssml.encode("utf-8"), timeout=30
+        )
+        synth_resp.raise_for_status()
+        return synth_resp.content
 
     def speech_to_text(
         self, audio_data: bytes, language: str = "en-AU"
