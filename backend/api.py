@@ -291,20 +291,30 @@ async def get_pension_projection(user_id: str):
     try:
         projection = inference_engine.predict_pension_projection(user_id)
 
-        # Ensure all numeric values are native Python types for JSON serialization
-        def convert_numpy_types(obj):
+        # Ensure all numeric values are native Python types and JSON-safe (no NaN/Inf)
+        def convert_json_safe(obj):
             if isinstance(obj, dict):
-                return {k: convert_numpy_types(v) for k, v in obj.items()}
+                return {k: convert_json_safe(v) for k, v in obj.items()}
             elif isinstance(obj, list):
-                return [convert_numpy_types(item) for item in obj]
+                return [convert_json_safe(item) for item in obj]
             elif hasattr(obj, "item"):  # NumPy scalar
-                return obj.item()
+                val = obj.item()
+                if isinstance(val, float) and (np.isnan(val) or np.isinf(val)):
+                    return None
+                return val
             elif isinstance(obj, (np.integer, np.floating)):
-                return obj.item()
+                val = obj.item()
+                if isinstance(val, float) and (np.isnan(val) or np.isinf(val)):
+                    return None
+                return val
+            elif isinstance(obj, float):
+                if np.isnan(obj) or np.isinf(obj):
+                    return None
+                return obj
             else:
                 return obj
 
-        projection = convert_numpy_types(projection)
+        projection = convert_json_safe(projection)
 
         return {"success": True, "data": projection}
     except ValueError as e:
