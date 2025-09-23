@@ -839,7 +839,7 @@ export default function Dashboard() {
     const handleSendEmail = async () => {
       setIsSendingEmail(true);
       try {
-        const response = await fetch(`http://localhost:8000/trigger-email/${newsSource}`, {
+        const response = await fetch(`https://mitsubishi-hackathon-finals.vercel.app//trigger-email/${newsSource}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
