@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { SupabaseService } from "@/services/supabaseService";
 import { API_BASE_URL } from "@/services/dataService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Mail, Loader2, Shield } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 import { LogOut, User, ArrowLeft } from "lucide-react";
 
@@ -828,73 +831,255 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* User Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">
-                  {currentUser?.Name || `User ${currentUser?.User_ID}`}
-                  {isAdminMode && (
-                    <span className="ml-2 text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                      Admin Mode
-                    </span>
-                  )}
-                </h2>
-                <p className="text-muted-foreground">
-                  {`ID: ${currentUser?.User_ID}`}
-                </p>
+  const NewsUpdateSection = () => {
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [newsSource, setNewsSource] = useState("newsapi");
+    const { toast } = useToast();
+
+    const handleSendEmail = async () => {
+      setIsSendingEmail(true);
+      try {
+        const response = await fetch(`http://localhost:8000/trigger-email/${newsSource}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          const sourceName = newsSource === "gemini" ? "Gemini AI" : "NewsAPI";
+          toast({
+            title: "Email Sent!",
+            description: `Financial update email sent successfully using ${sourceName}.`,
+          });
+        } else {
+          toast({
+            title: "Email Failed",
+            description: "Failed to send email. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error sending email:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send email. Please check your connection.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSendingEmail(false);
+      }
+    };
+
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="text-sm font-medium text-black-700">News Source:</div>
+        <Select value={newsSource} onValueChange={setNewsSource}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select news source" />
+          </SelectTrigger>
+          <SelectContent className="bg-white border border-black-300">
+            <SelectItem value="newsapi">NewsAPI (Real-time)</SelectItem>
+            <SelectItem value="gemini">Gemini AI (Generated)</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        <Button
+          onClick={handleSendEmail}
+          disabled={isSendingEmail}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {isSendingEmail ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Mail className="w-4 h-4 mr-2" />
+              Get Financial Update
+            </>
+          )}
+        </Button>
+      </div>
+    );
+  };
+
+  const getRiskColor = (risk: string) => {
+    switch (risk) {
+      case 'Low': return 'bg-green-100 text-green-800 border-green-200';
+      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'High': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+return (
+  <div className="min-h-screen bg-background flex">
+    {/* Left Sidebar - 1/3 width */}
+    <div className="w-1/3 bg-white border-r border-black-200 p-6 flex flex-col">
+      {/* User Profile Section */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+            <User className="w-8 h-8 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-black-900">
+              Welcome back, {currentUser?.name || `User ${currentUser?.userId}`}!
+            </h2>
+          </div>
+        </div>
+
+        {/* User Stats */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-black-600">Age</p>
+              <p className="font-semibold">{currentUser?.age || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-black-600">Risk</p>
+              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getRiskColor(currentUser?.risk_tolerance || 'Medium')}`}>
+                {currentUser?.risk_tolerance || 'Medium'}
+              </span>
+            </div>
+            <div>
+              <p className="text-black-600">Status</p>
+              <p className="font-semibold">{currentUser?.marital_status || 'Single'}</p>
+            </div>
+            <div>
+              <p className="text-black-600">Dependents</p>
+              <p className="font-semibold">{currentUser?.number_of_dependents || 0}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Goal Progress - Full Width */}
+        <div className="mb-6">
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-black-700">Retirement Goal Progress</p>
+              <span className="text-2xl font-bold text-green-600">{Math.round(goalProgress.percentage)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
+              <div 
+                className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                style={{ width: `${Math.min(100, goalProgress.percentage)}%` }}
+              >
+                {goalProgress.percentage > 10 && (
+                  <span className="text-xs text-white font-semibold">{Math.round(goalProgress.percentage)}%</span>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {isAdminMode && (
-                <Button 
-                  onClick={() => navigate('/user-manager')}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to User Manager
-                </Button>
-              )}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <p className="text-base font-semibold text-green-700 mb-1">
+                🎉 You're on track! Keep it up!
+              </p>
+              <p className="text-xs text-green-600">
+                Your consistent contributions are building your future
+              </p>
+            </div>
+          </div>
+          
+          {/* News Source Selection and Email Button */}
+          <NewsUpdateSection />
+        </div>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1">
+        <div className="space-y-2">
+          {[
+            { id: 'chatbot', label: 'Chatbot', icon: '💬' },
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'portfolio', label: 'Portfolio', icon: '📈' },
+            { id: 'goals', label: 'Goals', icon: '🎯' },
+            { id: 'calculator', label: 'Calculator', icon: '🧮' },
+            { id: 'education', label: 'Guide', icon: '📚' },
+            { id: 'risk', label: 'Risk', icon: '⚖️' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-black-700 hover:bg-black-100'
+              }`}
+            >
+              <span className="text-lg">{tab.icon}</span>
+              <span className="font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+      
+    </div>
+
+    {/* Right Content Area - 2/3 width */}
+    <div className="flex-1 p-8 relative">
+      {/* Top Bar with User ID and Admin Controls */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+          {/* SuperWise Logo */}
+          <div className="flex items-center">
+            <Shield className="h-7 w-7 text-blue-600" />
+            <span className="ml-2 text-lg font-bold text-gray-900">SuperWise</span>
+          </div>
+        {/* User ID and Admin Mode Badge */}
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-black-500">
+            ID: {currentUser?.User_ID}
+          </p>
+          {isAdminMode && (
+            <span className="inline-block text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+              Admin Mode
+            </span>
+          )}
+        </div>
+        
+        {/* Admin Controls */}
+          {isAdminMode ? (
+            <>
+              <Button 
+                onClick={() => navigate('/user-manager')}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to User Manager
+              </Button>
               <Button 
                 onClick={handleSignOut}
                 variant="outline"
                 className="flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
-                {isAdminMode ? 'Exit Admin Mode' : 'Sign Out'}
+                Exit Admin Mode
               </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Dashboard Header */}
-        <DashboardHeader 
-          user={currentUser} 
-          goalProgress={goalProgress}
-        />
-
-        {/* Navigation Tabs */}
-        <NavigationTabs 
-          activeTab={activeTab} 
-          onTabChange={handleTabChange}
-        />
-
-        {/* Main Content */}
-        <div className="mt-8">
-          {renderPage()}
-        </div>
-
-        {/* Floating Chat Button */}
-        <FloatingChatButton user={currentUser} />
+            </>
+          ) : (
+            <Button 
+              onClick={handleSignOut}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </Button>
+          )}
       </div>
+      
+      {/* Main Content */}
+      <div className={isAdminMode ? "mt-16" : "mt-16"}>
+        {renderPage()}
+      </div>
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton user={currentUser} />
     </div>
-  );
+  </div>
+);
 }

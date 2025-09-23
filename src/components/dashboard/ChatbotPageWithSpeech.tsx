@@ -589,10 +589,10 @@ export function ChatbotPageWithSpeech({ user }: ChatbotPageProps) {
                 key={index}
                 variant="outline"
                 onClick={() => handleSampleQuestion(question)}
-                className="h-auto p-4 text-left justify-start text-lg hover:bg-muted"
+                className="h-auto p-4 text-left justify-start text-lg hover:bg-muted whitespace-normal break-words"
               >
                 <MessageCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                {question}
+                <span className="flex-1">{question}</span>
               </Button>
             ))}
           </div>
